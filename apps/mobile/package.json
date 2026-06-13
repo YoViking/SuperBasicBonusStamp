@@ -1,0 +1,38 @@
+{
+  "name": "fotobutik-mobile",
+  "version": "1.0.0",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@react-navigation/bottom-tabs": "^7.15.4",
+    "@react-navigation/material-top-tabs": "^7.4.18",
+    "@react-navigation/native": "^7.1.32",
+    "@react-navigation/native-stack": "^7.14.3",
+    "drizzle-orm": "^0.39.0",
+    "expo": "~54.0.0",
+    "expo-sqlite": "~16.0.0",
+    "expo-status-bar": "~3.0.9",
+    "fast-text-encoding": "^1.0.6",
+    "install": "^0.13.0",
+    "jose": "^5.0.0",
+    "npm": "^11.11.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-pager-view": "6.9.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-tab-view": "^4.2.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@types/react": "~19.1.0",
+    "drizzle-kit": "^0.30.0",
+    "typescript": "^5.3.3"
+  },
+  "private": true
+}
