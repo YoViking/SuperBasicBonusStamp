@@ -5,6 +5,7 @@ export const articles = sqliteTable('articles', {
     sku: text('sku').notNull().unique(),
     name: text('name').notNull(),
     price: real('price').notNull(),
+    category: text('category').notNull().default('Färgfilm'),
 });
 
 export const customers = sqliteTable('customers', {

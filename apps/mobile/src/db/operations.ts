@@ -9,12 +9,23 @@ export type Article = InferSelectModel<typeof articles>;
 
 /** --- ARTIKLAR (För Admin) --- **/
 
-export const addArticle = async (sku: string, name: string, price: number) => {
+export const addArticle = async (sku: string, name: string, price: number, category: string) => {
   return await db.insert(articles).values({
     sku,
     name,
     price,
+    category,
   });
+};
+
+export const updateArticle = async (id: number, sku: string, name: string, price: number, category: string) => {
+  return await db.update(articles)
+    .set({ sku, name, price, category })
+    .where(eq(articles.id, id));
+};
+
+export const deleteArticle = async (id: number) => {
+  return await db.delete(articles).where(eq(articles.id, id));
 };
 
 /** --- INSTÄLLNINGAR (För Admin) --- **/
@@ -52,7 +63,7 @@ export const createCustomer = async (phone: string): Promise<Customer> => {
   return result[0];
 };
 
-export const processPurchase = async (phone: string, amount: number) => {
+export const processPurchase = async (phone: string, amount: number, appliedBonusesCount: number = 0) => {
   const config = await db.query.bonusSettings.findFirst({ 
     where: eq(bonusSettings.id, 1) 
   });
@@ -63,13 +74,20 @@ export const processPurchase = async (phone: string, amount: number) => {
     customer = await createCustomer(phone);
   }
 
-  let newBalance = customer.currentBalance + amount;
-  let bonusEarned = false;
-
-  if (newBalance >= threshold) {
-    bonusEarned = true;
-    newBalance = newBalance - threshold;
+  const previousBalance = customer.currentBalance;
+  
+  let adjustedPreviousBalance = previousBalance;
+  if (appliedBonusesCount > 0) {
+    const deduction = threshold * appliedBonusesCount;
+    adjustedPreviousBalance = Math.max(0, previousBalance - deduction);
   }
+
+  const newBalance = adjustedPreviousBalance + amount;
+  
+  const previousBonuses = Math.floor(adjustedPreviousBalance / threshold);
+  const newBonuses = Math.floor(newBalance / threshold);
+  
+  const bonusEarned = newBonuses > previousBonuses;
 
   await db.update(customers)
     .set({ 

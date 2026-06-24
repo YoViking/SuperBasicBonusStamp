@@ -1,3 +1,24 @@
+import 'react-native-get-random-values';
+import webCrypto from 'expo-standard-web-crypto';
+
+// Polyfill global.crypto safely using defineProperty to bypass read-only restrictions
+try {
+  Object.defineProperty(globalThis, 'crypto', {
+    value: webCrypto,
+    configurable: true,
+    enumerable: true,
+    writable: true,
+  });
+  Object.defineProperty(global, 'crypto', {
+    value: webCrypto,
+    configurable: true,
+    enumerable: true,
+    writable: true,
+  });
+} catch (e) {
+  console.error("Failed to polyfill crypto:", e);
+}
+
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -50,6 +71,14 @@ export default function App() {
             price REAL NOT NULL
           );`
         );
+
+        // Safe migration: Add category column if it doesn't exist
+        try {
+          await db.run(`ALTER TABLE articles ADD COLUMN category TEXT NOT NULL DEFAULT 'Färgfilm';`);
+          console.log("Added category column to articles table");
+        } catch (e) {
+          // Column already exists, ignore
+        }
 
      
 await db.run(
