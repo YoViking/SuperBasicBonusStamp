@@ -1,5 +1,5 @@
 import { db } from './client';
-import { customers, bonusSettings, articles } from './schema';
+import { customers, bonusSettings, articles, salesItems } from './schema';
 import { eq } from 'drizzle-orm';
 import { InferSelectModel } from 'drizzle-orm';
 
@@ -59,13 +59,13 @@ export const createCustomer = async (phone: string): Promise<Customer> => {
     currentBalance: 0,
     totalSpent: 0,
   }).returning();
-  
+
   return result[0];
 };
 
-export const processPurchase = async (phone: string, amount: number, appliedBonusesCount: number = 0) => {
-  const config = await db.query.bonusSettings.findFirst({ 
-    where: eq(bonusSettings.id, 1) 
+export const processPurchase = async (phone: string, amount: number, cart: Article[], appliedBonusesCount: number = 0) => {
+  const config = await db.query.bonusSettings.findFirst({
+    where: eq(bonusSettings.id, 1)
   });
   const threshold = config?.threshold ?? 1000;
 
@@ -75,26 +75,31 @@ export const processPurchase = async (phone: string, amount: number, appliedBonu
   }
 
   const previousBalance = customer.currentBalance;
-  
-  let adjustedPreviousBalance = previousBalance;
-  if (appliedBonusesCount > 0) {
-    const deduction = threshold * appliedBonusesCount;
-    adjustedPreviousBalance = Math.max(0, previousBalance - deduction);
-  }
 
-  const newBalance = adjustedPreviousBalance + amount;
+  const bonusDiscount = (config?.rewardAmount ?? 100) * appliedBonusesCount;
+  const actualPaidAmount = Math.max(0, amount - bonusDiscount);
   
-  const previousBonuses = Math.floor(adjustedPreviousBalance / threshold);
+  const pointsDeduction = threshold * appliedBonusesCount;
+  const newBalance = Math.max(0, previousBalance - pointsDeduction) + actualPaidAmount;
+
+  const previousBonuses = Math.floor(Math.max(0, previousBalance - pointsDeduction) / threshold);
   const newBonuses = Math.floor(newBalance / threshold);
-  
+
   const bonusEarned = newBonuses > previousBonuses;
 
   await db.update(customers)
-    .set({ 
-      currentBalance: newBalance, 
-      totalSpent: customer.totalSpent + amount 
+    .set({
+      currentBalance: newBalance,
+      totalSpent: customer.totalSpent + actualPaidAmount
     })
     .where(eq(customers.phoneNumber, phone));
+
+  for (const item of cart) {
+    await db.insert(salesItems).values({
+      articleId: item.id,
+      quantity: 1,
+    });
+  }
 
   return { bonusEarned, newBalance, threshold };
 };

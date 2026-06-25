@@ -20,6 +20,7 @@ try {
 }
 
 import React, { useEffect } from 'react';
+import { Image, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs'; // NY
@@ -44,14 +45,14 @@ function AdminTabs() {
         tabBarIndicatorStyle: { backgroundColor: '#007bff' },
       }}
     >
-      <AdminTab.Screen 
-        name="Artiklar" 
-        component={ArticleManager} 
+      <AdminTab.Screen
+        name="Artiklar"
+        component={ArticleManager}
         options={{ title: 'Hantera Artiklar' }}
       />
-      <AdminTab.Screen 
-        name="Bonus" 
-        component={BonusSettingsScreen} 
+      <AdminTab.Screen
+        name="Bonus"
+        component={BonusSettingsScreen}
         options={{ title: 'Bonusregler' }}
       />
     </AdminTab.Navigator>
@@ -59,7 +60,7 @@ function AdminTabs() {
 }
 
 export default function App() {
-  
+
   useEffect(() => {
     async function setupDb() {
       try {
@@ -80,16 +81,16 @@ export default function App() {
           // Column already exists, ignore
         }
 
-     
-await db.run(
-  `CREATE TABLE IF NOT EXISTS customers (
+
+        await db.run(
+          `CREATE TABLE IF NOT EXISTS customers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     phone_number TEXT NOT NULL UNIQUE,
     current_balance REAL DEFAULT 0,
     total_spent REAL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- <--- LÄGG TILL DENNA RAD
   );`
-);
+        );
 
         await db.run(
           `CREATE TABLE IF NOT EXISTS bonus_settings (
@@ -97,6 +98,15 @@ await db.run(
             threshold REAL NOT NULL,
             reward_amount REAL NOT NULL,
             bonus_message TEXT NOT NULL
+          );`
+        );
+
+        await db.run(
+          `CREATE TABLE IF NOT EXISTS sales_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            articleId INTEGER NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );`
         );
 
@@ -111,23 +121,53 @@ await db.run(
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <Tab.Navigator 
+        <Tab.Navigator
           screenOptions={{
-            headerStyle: { backgroundColor: '#f8f9fa' },
-            tabBarActiveTintColor: '#007bff',
-            tabBarInactiveTintColor: 'gray',
+            headerStyle: {
+              backgroundColor: '#ffffff',
+              borderBottomWidth: 1,
+              borderBottomColor: '#e5e5e5',
+              elevation: 0,
+              shadowOpacity: 0,
+            },
+            headerTitleAlign: 'center',
+            headerTitleStyle: {
+              fontSize: 20,
+              fontWeight: '600',
+              color: '#333333',
+            },
+            headerLeft: () => (
+              <Image
+                source={require('./assets/logo.png')}
+                style={{ width: 100, height: 32, marginLeft: 15, resizeMode: 'contain' }}
+              />
+            ),
+            tabBarActiveTintColor: '#4188d8',
+            tabBarInactiveTintColor: '#888888',
+            tabBarLabelStyle: {
+              fontSize: 16,
+              fontWeight: 'bold',
+            },
+            tabBarIconStyle: { display: 'none' },
+            tabBarStyle: {
+              backgroundColor: '#ffffff',
+              borderTopWidth: 0,
+              elevation: 0,
+              shadowOpacity: 0,
+              height: 50,
+            }
           }}
         >
-          <Tab.Screen 
-            name="Kassa" 
-            component={PosScreen} 
-            options={{ title: 'Kassa 📸' }}
+          <Tab.Screen
+            name="Kassa"
+            component={PosScreen}
+            options={{ title: 'Kassa' }}
           />
           {/* HÄR ÄR ÄNDRINGEN: Vi använder AdminTabs istället för AdminScreen */}
-          <Tab.Screen 
-            name="Admin" 
-            component={AdminTabs} 
-            options={{ title: 'Inställningar ⚙️' }}
+          <Tab.Screen
+            name="Admin"
+            component={AdminTabs}
+            options={{ title: 'Inställningar' }}
           />
         </Tab.Navigator>
       </NavigationContainer>

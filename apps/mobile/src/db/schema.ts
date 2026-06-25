@@ -1,5 +1,12 @@
 import { sqliteTable, text, real, integer } from 'drizzle-orm/sqlite-core';
 
+export const salesItems = sqliteTable('sales_items', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    articleId: integer('articleId').notNull(),
+    quantity: integer('quantity').notNull().default(1),
+    createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+});
+
 export const articles = sqliteTable('articles', {
     id: integer('id').primaryKey({ autoIncrement: true}),
     sku: text('sku').notNull().unique(),

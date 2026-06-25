@@ -1,42 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useIsFocused } from '@react-navigation/native';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  FlatList, 
-  StyleSheet, 
-  Alert, 
-  Platform, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Alert,
+  Platform,
   Linking,
   ScrollView
 } from 'react-native';
 import { db } from '../db/client';
-import { articles, bonusSettings } from '../db/schema';
+import { articles, bonusSettings, customers, salesItems } from '../db/schema';
 import { processPurchase, getCustomer } from '../db/operations';
-import { InferSelectModel } from 'drizzle-orm';
+import { InferSelectModel, eq, desc, inArray, count } from 'drizzle-orm';
 
 type Article = InferSelectModel<typeof articles>;
-
-// Mock top sellers
-const TOP_SELLERS: Article[] = [
-  { id: -1, sku: 'TOP1', name: 'Kodak Gold 200 135-36', price: 129 },
-  { id: -2, sku: 'TOP2', name: 'Ilford HP5 Plus 400 135-36', price: 109 },
-  { id: -3, sku: 'TOP3', name: 'Kodak Portra 400 135-36', price: 189 },
-  { id: -4, sku: 'TOP4', name: 'Kodak Tri-X 400 135-36', price: 129 },
-];
 
 export default function PosScreen() {
   const isFocused = useIsFocused();
   const [phone, setPhone] = useState('');
   const [availableArticles, setAvailableArticles] = useState<Article[]>([]);
   const [cart, setCart] = useState<Article[]>([]);
+  const [topSellers, setTopSellers] = useState<Article[]>([]);
   const [customerStatus, setCustomerStatus] = useState<string | null>(null);
   const [availableBonuses, setAvailableBonuses] = useState<number>(0);
   const [rewardAmount, setRewardAmount] = useState<number>(0);
   const [appliedBonusesCount, setAppliedBonusesCount] = useState<number>(0);
-  
+  const [isNewCustomer, setIsNewCustomer] = useState<boolean>(false);
+  const [customerId, setCustomerId] = useState<number | null>(null);
+
   // Navigation states
   const [currentView, setCurrentView] = useState<'HOME' | 'BRAND_SELECTION' | 'ARTICLE_SELECTION'>('HOME');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -46,6 +41,25 @@ export default function PosScreen() {
     const loadData = async () => {
       const data = await db.select().from(articles);
       setAvailableArticles(data);
+
+      const topSales = await db.select({
+        articleId: salesItems.articleId,
+        salesCount: count()
+      })
+      .from(salesItems)
+      .groupBy(salesItems.articleId)
+      .orderBy(desc(count()))
+      .limit(4);
+
+      if (topSales.length > 0) {
+        const topArticleIds = topSales.map(s => s.articleId);
+        const topArticlesData = await db.select().from(articles).where(inArray(articles.id, topArticleIds));
+        
+        const sortedTopArticles = topSales.map(s => topArticlesData.find(a => a.id === s.articleId)).filter(Boolean) as Article[];
+        setTopSellers(sortedTopArticles);
+      } else {
+        setTopSellers([]);
+      }
     };
     if (isFocused) {
       loadData();
@@ -66,12 +80,15 @@ export default function PosScreen() {
       const rewardAmountValue = config.length > 0 ? config[0].rewardAmount : 100;
 
       const customer = await getCustomer(phone);
-      
+      setCustomerId(customer ? customer.id : null);
+
       if (!customer || customer.currentBalance === 0) {
+        setIsNewCustomer(true);
         setCustomerStatus(`Ny kund. ${threshold} kr kvar till nästa bonus.`);
         setAvailableBonuses(0);
         setAppliedBonusesCount(0);
       } else {
+        setIsNewCustomer(false);
         const currentBalance = customer.currentBalance;
         const availableBonusesFound = Math.floor(currentBalance / threshold);
         const currentProgress = currentBalance % threshold;
@@ -93,10 +110,42 @@ export default function PosScreen() {
     }
   };
 
-  const sendSms = (number: string, amount: number, bonusEarned: boolean) => {
+  const handleDeleteCustomer = () => {
+    if (!customerId) return;
+    Alert.alert(
+      "Radera kund",
+      "Är du säker på att du vill radera kunden? Detta raderar även alla intjänade bonusar och kan inte ångras.",
+      [
+        { text: "Avbryt", style: "cancel" },
+        {
+          text: "Ja, ta bort",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await db.delete(customers).where(eq(customers.id, customerId));
+              setPhone('');
+              setCustomerStatus(null);
+              setAvailableBonuses(0);
+              setAppliedBonusesCount(0);
+              setCustomerId(null);
+              setIsNewCustomer(false);
+            } catch (error: any) {
+              Alert.alert("Fel", "Kunde inte radera kunden: " + error.message);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const sendSms = (number: string, amount: number, bonusEarned: boolean, isNew: boolean, remaining: number) => {
     let msg = `Tack för ditt köp på Kamera Stockholm! Ditt köp på ${amount} kr har registrerats.`;
     if (bonusEarned) {
       msg += ` Grattis! Du har nått en ny bonusnivå och har en belöning att hämta ut vid ditt nästa köp!`;
+    }
+    msg += ` Du har nu ${remaining} kr kvar till din nästa bonus!`;
+    if (isNew) {
+      msg += `\n\nInfo: Vi sparar ditt nummer för bonussystemet. Dina data delas aldrig. Svara STOPP om du vill gå ur.`;
     }
     const url = `sms:${number}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
     Linking.openURL(url);
@@ -109,37 +158,43 @@ export default function PosScreen() {
         return;
       }
 
-      const { bonusEarned } = await processPurchase(phone, total, appliedBonusesCount);
+      const { bonusEarned, newBalance, threshold } = await processPurchase(phone, subTotal, cart, appliedBonusesCount);
+
+      const remainingAfterPurchase = threshold - (newBalance % threshold);
 
       const title = bonusEarned ? "🎉 Bonus Uppnådd! 🎉" : "Köp registrerat";
-      const message = bonusEarned 
+      const message = bonusEarned
         ? "Kunden har precis nått en ny bonusnivå!\n\nVill du skicka ett bekräftelse-SMS till kunden?"
         : "Vill du skicka ett bekräftelse-SMS till kunden?";
 
       Alert.alert(title, message, [
-        { 
-          text: "Nej", 
+        {
+          text: "Nej",
           style: "cancel",
-          onPress: () => { 
-            setCart([]); 
-            setPhone(''); 
+          onPress: () => {
+            setCart([]);
+            setPhone('');
             setCustomerStatus(null);
             setAvailableBonuses(0);
             setAppliedBonusesCount(0);
+            setCustomerId(null);
+            setIsNewCustomer(false);
             setCurrentView('HOME');
-          } 
+          }
         },
-        { 
-          text: "Ja, öppna SMS", 
-          onPress: () => { 
-            sendSms(phone, total, bonusEarned); 
-            setCart([]); 
-            setPhone(''); 
+        {
+          text: "Ja, öppna SMS",
+          onPress: () => {
+            sendSms(phone, total, bonusEarned, isNewCustomer, remainingAfterPurchase);
+            setCart([]);
+            setPhone('');
             setCustomerStatus(null);
             setAvailableBonuses(0);
             setAppliedBonusesCount(0);
+            setCustomerId(null);
+            setIsNewCustomer(false);
             setCurrentView('HOME');
-          } 
+          }
         }
       ]);
     } catch (error: any) {
@@ -170,8 +225,8 @@ export default function PosScreen() {
   const renderArticle = ({ item }: { item: Article }) => {
     const brand = item.name.split(' ')[0];
     return (
-      <TouchableOpacity 
-        style={styles.articleCard} 
+      <TouchableOpacity
+        style={styles.articleCard}
         onPress={() => setCart([...cart, item])}
       >
         <View>
@@ -188,9 +243,9 @@ export default function PosScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.searchRow}>
-        <TextInput 
-          style={styles.phoneInput} 
-          placeholder="Kundens telefonnummer" 
+        <TextInput
+          style={styles.phoneInput}
+          placeholder="Kundens telefonnummer"
           keyboardType="phone-pad"
           value={phone}
           onChangeText={(text) => {
@@ -198,6 +253,8 @@ export default function PosScreen() {
             if (customerStatus) setCustomerStatus(null);
             setAppliedBonusesCount(0);
             setAvailableBonuses(0);
+            setCustomerId(null);
+            setIsNewCustomer(false);
           }}
         />
         <TouchableOpacity style={styles.searchButton} onPress={searchCustomer}>
@@ -208,40 +265,46 @@ export default function PosScreen() {
       {customerStatus && (
         <View style={styles.statusContainer}>
           <Text style={styles.statusText}>{customerStatus}</Text>
-          
+
           {availableBonuses > 0 && (
-            <View style={{marginTop: 10}}>
+            <View style={{ marginTop: 10 }}>
               {availableBonuses - appliedBonusesCount > 0 && (
-                <TouchableOpacity 
-                  style={styles.bonusButton} 
+                <TouchableOpacity
+                  style={styles.bonusButton}
                   onPress={() => setAppliedBonusesCount(prev => prev + 1)}
                 >
                   <Text style={styles.bonusButtonText}>Utnyttja 1 st bonus (-{rewardAmount} kr)</Text>
                 </TouchableOpacity>
               )}
-              
+
               {appliedBonusesCount > 0 && (
-                <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10}}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                   <Text style={styles.bonusAppliedText}>
                     {appliedBonusesCount} st bonusar valda (-{appliedBonusesCount * rewardAmount} kr)
                   </Text>
-                  <TouchableOpacity onPress={() => setAppliedBonusesCount(0)} style={{padding: 5}}>
-                    <Text style={{color: '#f37f06', textDecorationLine: 'underline', fontSize: 16}}>Nollställ/Ångra</Text>
+                  <TouchableOpacity onPress={() => setAppliedBonusesCount(0)} style={{ padding: 5 }}>
+                    <Text style={{ color: '#f37f06', textDecorationLine: 'underline', fontSize: 16 }}>Nollställ/Ångra</Text>
                   </TouchableOpacity>
                 </View>
               )}
 
               {appliedBonusesCount > 0 && availableBonuses - appliedBonusesCount > 0 && (
-                <Text style={{color: '#555', marginTop: 5, fontStyle: 'italic'}}>
+                <Text style={{ color: '#555', marginTop: 5, fontStyle: 'italic' }}>
                   Kunden har {availableBonuses - appliedBonusesCount} bonus(ar) kvar att utnyttja.
                 </Text>
               )}
               {appliedBonusesCount > 0 && availableBonuses - appliedBonusesCount === 0 && (
-                <Text style={{color: '#555', marginTop: 5, fontStyle: 'italic'}}>
+                <Text style={{ color: '#555', marginTop: 5, fontStyle: 'italic' }}>
                   Kunden har inga fler bonusar att utnyttja på detta köp.
                 </Text>
               )}
             </View>
+          )}
+          
+          {customerId !== null && (
+            <TouchableOpacity onPress={handleDeleteCustomer} style={styles.deleteButton}>
+              <Text style={styles.deleteButtonText}>Ta bort kund helt (GDPR)</Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -250,10 +313,10 @@ export default function PosScreen() {
         {currentView === 'HOME' ? (
           <ScrollView>
             <Text style={styles.label}>Välj artiklar:</Text>
-            {TOP_SELLERS.map((item) => (
-              <TouchableOpacity 
-                key={item.id} 
-                style={styles.articleCard} 
+            {topSellers.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.articleCard}
                 onPress={() => setCart([...cart, item])}
               >
                 <Text style={styles.articleName}>{item.name}</Text>
@@ -262,8 +325,8 @@ export default function PosScreen() {
             ))}
 
             <View style={styles.categoryRow}>
-              <TouchableOpacity 
-                style={styles.colorCategoryButton} 
+              <TouchableOpacity
+                style={styles.colorCategoryButton}
                 onPress={() => handleCategoryPress('Färgfilm')}
               >
                 <View style={styles.colorStripes}>
@@ -278,8 +341,8 @@ export default function PosScreen() {
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.bwCategoryButton} 
+              <TouchableOpacity
+                style={styles.bwCategoryButton}
                 onPress={() => handleCategoryPress('Svartvit film')}
               >
                 <View style={styles.bwStripes}>
@@ -303,9 +366,9 @@ export default function PosScreen() {
             </View>
             <View style={styles.brandsGrid}>
               {uniqueBrands.map((brand) => (
-                <TouchableOpacity 
-                  key={brand} 
-                  style={styles.brandSquareButton} 
+                <TouchableOpacity
+                  key={brand}
+                  style={styles.brandSquareButton}
                   onPress={() => handleBrandPress(brand)}
                 >
                   <Text style={styles.brandButtonText}>{brand}</Text>
@@ -321,8 +384,8 @@ export default function PosScreen() {
               </TouchableOpacity>
               <Text style={styles.categoryTitle}>{selectedBrand}</Text>
             </View>
-            <FlatList 
-              data={brandArticles} 
+            <FlatList
+              data={brandArticles}
               keyExtractor={(item) => item.id.toString()}
               renderItem={renderArticle}
             />
@@ -351,16 +414,18 @@ const styles = StyleSheet.create({
   bonusButton: { backgroundColor: '#f37f06', padding: 10, borderRadius: 8, alignItems: 'center' },
   bonusButtonText: { color: '#fff', fontWeight: 'bold' },
   bonusAppliedText: { color: '#f37f06', fontWeight: 'bold', fontSize: 16, textAlign: 'center' },
-  
+  deleteButton: { marginTop: 15, padding: 10, borderWidth: 1, borderColor: '#ee0c00', borderRadius: 8, alignItems: 'center' },
+  deleteButtonText: { color: '#ee0c00', fontWeight: 'bold' },
+
   contentArea: { flex: 1, marginTop: 10 },
   label: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, color: '#333' },
-  
-  articleCard: { 
-    padding: 20, 
-    backgroundColor: '#fff', 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#eee', 
-    flexDirection: 'row', 
+
+  articleCard: {
+    padding: 20,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center'
   },
@@ -374,10 +439,10 @@ const styles = StyleSheet.create({
   colorStripes: { flexDirection: 'row', flex: 1 },
   bwStripes: { flexDirection: 'row', flex: 1 },
   stripe: { flex: 1 },
-  categoryOverlay: { 
-    ...StyleSheet.absoluteFillObject, 
+  categoryOverlay: {
+    ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
-    justifyContent: 'center', 
+    justifyContent: 'center',
     alignItems: 'center',
   },
   colorCategoryText: { fontSize: 28, fontWeight: '800', color: '#fff' },
