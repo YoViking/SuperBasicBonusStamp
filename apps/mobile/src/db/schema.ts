@@ -28,4 +28,5 @@ export const bonusSettings = sqliteTable('bonus_settings', {
     threshold: real('threshold').notNull(),
     rewardAmount: real('reward_amount').notNull(),
     bonusMessage: text('bonus_message').notNull(),
-})
+    purchaseMessage: text('purchase_message'),
+});

@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  Alert,
+} from 'react-native';
 import { addArticle, updateArticle, deleteArticle } from '../db/operations';
 import { db } from '../db/client';
 import { articles } from '../db/schema';
@@ -11,6 +19,8 @@ export default function ArticleManager() {
   const [selectedType, setSelectedType] = useState('COLOR');
   const [savedArticles, setSavedArticles] = useState<any[]>([]);
   const [editingArticleId, setEditingArticleId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isFormVisible, setIsFormVisible] = useState(false);
 
   const loadArticles = async () => {
     const data = await db.select().from(articles);
@@ -35,6 +45,7 @@ export default function ArticleManager() {
       }
       setSku(''); setName(''); setPrice('');
       setEditingArticleId(null);
+      setIsFormVisible(false);
       loadArticles();
     } catch (error: any) {
       Alert.alert("Fel", error.message);
@@ -47,6 +58,7 @@ export default function ArticleManager() {
     setName(item.name);
     setPrice(item.price.toString());
     setSelectedType(item.category || 'COLOR');
+    setIsFormVisible(true);
   };
 
   const handleDelete = (item: any) => {
@@ -77,51 +89,123 @@ export default function ArticleManager() {
   const cancelEdit = () => {
     setSku(''); setName(''); setPrice('');
     setEditingArticleId(null);
+    setIsFormVisible(false);
   };
+
+  const filteredArticles = savedArticles.filter(item => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const nameMatch = item.name?.toLowerCase().includes(q);
+    const skuMatch = item.sku?.toLowerCase().includes(q);
+    const catMatch = item.category?.toLowerCase().includes(q);
+    return nameMatch || skuMatch || catMatch;
+  });
 
   return (
     <View style={styles.container}>
-      <View style={styles.form}>
-        <Text style={styles.label}>
-          {editingArticleId ? "Redigera artikel" : "Lägg till ny artikel"}
-        </Text>
-        
-        <View style={styles.toggleRow}>
-          <TouchableOpacity 
-            style={[styles.toggleButton, selectedType === 'COLOR' && styles.toggleActiveColor]} 
-            onPress={() => setSelectedType('COLOR')}>
-            <Text style={[styles.toggleText, selectedType === 'COLOR' && styles.toggleTextActive]}>FÄRGFILM</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.toggleButton, selectedType === 'BW' && styles.toggleActiveBW]} 
-            onPress={() => setSelectedType('BW')}>
-            <Text style={[styles.toggleText, selectedType === 'BW' && styles.toggleTextActive]}>SVARTVIT FILM</Text>
-          </TouchableOpacity>
+      {/* SÖKFÄLT OCH KNAPP FÖR NY ARTIKEL */}
+      <View style={styles.topActionsRow}>
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="🔍 Sök artikel (namn, SKU, kategori)..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#888"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+              <Text style={styles.clearSearchBtnText}>✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        <TextInput style={styles.input} placeholder="SKU (t.ex. PORTRA-400)" value={sku} onChangeText={setSku} />
-        <TextInput style={styles.input} placeholder="Namn (t.ex. Kodak Portra 400)" value={name} onChangeText={setName} />
-        <TextInput style={styles.input} placeholder="Pris" value={price} onChangeText={setPrice} keyboardType="numeric" />
-        
-        <TouchableOpacity 
-          style={[styles.button, editingArticleId && { backgroundColor: '#28a745' }]} 
-          onPress={handleSaveArticle}
+        <TouchableOpacity
+          style={[styles.toggleFormButton, isFormVisible && styles.toggleFormButtonActive]}
+          onPress={() => {
+            if (editingArticleId) {
+              cancelEdit();
+            } else {
+              setIsFormVisible(!isFormVisible);
+            }
+          }}
         >
-          <Text style={styles.buttonText}>
-            {editingArticleId ? "Uppdatera Artikel" : "Spara Artikel"}
+          <Text style={styles.toggleFormButtonText}>
+            {editingArticleId ? "Avbryt" : isFormVisible ? "Dölj formulär" : "＋ Ny artikel"}
           </Text>
         </TouchableOpacity>
-
-        {editingArticleId && (
-          <TouchableOpacity style={styles.cancelButton} onPress={cancelEdit}>
-            <Text style={styles.cancelButtonText}>Avbryt redigering</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
+      {/* FORMULÄR FÖR ATT SKAPA / REDIGERA ARTIKEL */}
+      {isFormVisible && (
+        <View style={styles.form}>
+          <Text style={styles.label}>
+            {editingArticleId ? "Redigera artikel" : "Lägg till ny artikel"}
+          </Text>
+          
+          <View style={styles.toggleRow}>
+            <TouchableOpacity 
+              style={[styles.toggleButton, selectedType === 'COLOR' && styles.toggleActiveColor]} 
+              onPress={() => setSelectedType('COLOR')}>
+              <Text style={[styles.toggleText, selectedType === 'COLOR' && styles.toggleTextActive]}>FÄRGFILM</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.toggleButton, selectedType === 'BW' && styles.toggleActiveBW]} 
+              onPress={() => setSelectedType('BW')}>
+              <Text style={[styles.toggleText, selectedType === 'BW' && styles.toggleTextActive]}>SVARTVIT FILM</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TextInput
+            style={styles.input}
+            placeholder="SKU (t.ex. PORTRA-400)"
+            value={sku}
+            onChangeText={setSku}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Namn (t.ex. Kodak Portra 400)"
+            value={name}
+            onChangeText={setName}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Pris"
+            value={price}
+            onChangeText={setPrice}
+            keyboardType="numeric"
+          />
+          
+          <TouchableOpacity 
+            style={[styles.button, editingArticleId && { backgroundColor: '#28a745' }]} 
+            onPress={handleSaveArticle}
+          >
+            <Text style={styles.buttonText}>
+              {editingArticleId ? "Uppdatera Artikel" : "Spara Artikel"}
+            </Text>
+          </TouchableOpacity>
+
+          {editingArticleId && (
+            <TouchableOpacity style={styles.cancelButton} onPress={cancelEdit}>
+              <Text style={styles.cancelButtonText}>Avbryt redigering</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* ARTIKELLISTA */}
       <FlatList
-        data={savedArticles}
+        data={filteredArticles}
         keyExtractor={(item) => item.id.toString()}
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              {searchQuery ? "Inga artiklar matchade din sökning." : "Inga artiklar sparade än."}
+            </Text>
+          </View>
+        }
         renderItem={({ item }) => {
           const brand = item.name.split(' ')[0];
           return (
@@ -149,8 +233,62 @@ export default function ArticleManager() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  form: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 20 },
+  container: { flex: 1, padding: 20, backgroundColor: '#fafafa' },
+  topActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 15,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    paddingHorizontal: 12,
+    height: 48,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 16,
+    color: '#222',
+  },
+  clearSearchBtn: {
+    padding: 6,
+  },
+  clearSearchBtnText: {
+    fontSize: 16,
+    color: '#888',
+    fontWeight: 'bold',
+  },
+  toggleFormButton: {
+    backgroundColor: '#007bff',
+    paddingHorizontal: 16,
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  toggleFormButtonActive: {
+    backgroundColor: '#6c757d',
+  },
+  toggleFormButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  form: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+  },
   label: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
   
   toggleRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
@@ -160,14 +298,14 @@ const styles = StyleSheet.create({
   toggleText: { fontWeight: 'bold', color: '#555' },
   toggleTextActive: { color: '#fff' },
 
-  input: { borderBottomWidth: 1, marginBottom: 15, padding: 5, borderColor: '#ddd' },
+  input: { borderBottomWidth: 1, marginBottom: 15, padding: 8, borderColor: '#ddd', fontSize: 16 },
   button: { backgroundColor: '#007bff', padding: 15, borderRadius: 5, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
+  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 
   cancelButton: { marginTop: 10, padding: 10, alignItems: 'center' },
   cancelButtonText: { color: '#dc3545', fontWeight: 'bold' },
   
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderColor: '#eee', backgroundColor: '#fff' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderBottomWidth: 1, borderColor: '#eee', backgroundColor: '#fff', borderRadius: 6, marginBottom: 8 },
   itemInfo: { flex: 1 },
   itemTitle: { fontSize: 16, color: '#333', fontWeight: 'bold' },
   itemSub: { fontSize: 12, color: '#666', marginTop: 4 },
@@ -177,5 +315,21 @@ const styles = StyleSheet.create({
   editButton: { backgroundColor: '#ffc107', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 5 },
   editButtonText: { color: '#000', fontWeight: 'bold', fontSize: 12 },
   deleteButton: { backgroundColor: '#dc3545', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 5 },
-  deleteButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 12 }
+  deleteButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
+
+  emptyContainer: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+    marginTop: 10,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: '#888',
+    fontStyle: 'italic',
+  }
 });

@@ -16,6 +16,11 @@ import { db } from '../db/client';
 import { articles, bonusSettings, customers, salesItems } from '../db/schema';
 import { processPurchase, getCustomer } from '../db/operations';
 import { InferSelectModel, eq, desc, inArray, count } from 'drizzle-orm';
+import {
+  formatSmsMessage,
+  DEFAULT_PURCHASE_MESSAGE,
+  DEFAULT_BONUS_MESSAGE,
+} from '../services/smsFormatter';
 
 type Article = InferSelectModel<typeof articles>;
 
@@ -138,17 +143,39 @@ export default function PosScreen() {
     );
   };
 
-  const sendSms = (number: string, amount: number, bonusEarned: boolean, isNew: boolean, remaining: number) => {
-    let msg = `Tack för ditt köp på Kamera Stockholm! Ditt köp på ${amount} kr har registrerats.`;
-    if (bonusEarned) {
-      msg += ` Grattis! Du har nått en ny bonusnivå och har en belöning att hämta ut vid ditt nästa köp!`;
+  const sendSms = async (number: string, amount: number, bonusEarned: boolean, isNew: boolean, remaining: number) => {
+    try {
+      const config = await db.query.bonusSettings.findFirst({ where: eq(bonusSettings.id, 1) });
+      const threshold = config?.threshold ?? 1000;
+      const reward = config?.rewardAmount ?? 100;
+
+      const templateToUse = bonusEarned
+        ? (config?.bonusMessage && config.bonusMessage.trim().length > 0 ? config.bonusMessage.trim() : DEFAULT_BONUS_MESSAGE)
+        : (config?.purchaseMessage && config.purchaseMessage.trim().length > 0 ? config.purchaseMessage.trim() : DEFAULT_PURCHASE_MESSAGE);
+
+      let msg = formatSmsMessage(templateToUse, {
+        amount,
+        remaining,
+        reward,
+        threshold,
+      });
+
+      if (isNew) {
+        msg += `\n\nInfo: Vi sparar ditt nummer för bonussystemet. Dina data delas aldrig. Svara STOPP om du vill gå ur.`;
+      }
+
+      const url = `sms:${number}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
+      Linking.openURL(url);
+    } catch (error) {
+      console.error("Fel vid skapande av SMS:", error);
+      const fallbackTemplate = bonusEarned ? DEFAULT_BONUS_MESSAGE : DEFAULT_PURCHASE_MESSAGE;
+      let msg = formatSmsMessage(fallbackTemplate, { amount, remaining, reward: 100, threshold: 1000 });
+      if (isNew) {
+        msg += `\n\nInfo: Vi sparar ditt nummer för bonussystemet. Dina data delas aldrig. Svara STOPP om du vill gå ur.`;
+      }
+      const url = `sms:${number}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
+      Linking.openURL(url);
     }
-    msg += ` Du har nu ${remaining} kr kvar till din nästa bonus!`;
-    if (isNew) {
-      msg += `\n\nInfo: Vi sparar ditt nummer för bonussystemet. Dina data delas aldrig. Svara STOPP om du vill gå ur.`;
-    }
-    const url = `sms:${number}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
-    Linking.openURL(url);
   };
 
   const handleComplete = async () => {
@@ -201,6 +228,28 @@ export default function PosScreen() {
       Alert.alert("Ett fel uppstod", error.message);
     }
   };
+
+  const handleRemoveOne = (articleId: number) => {
+    const lastIndex = cart.map(a => a.id).lastIndexOf(articleId);
+    if (lastIndex !== -1) {
+      setCart(prev => prev.filter((_, idx) => idx !== lastIndex));
+    }
+  };
+
+  const handleRemoveAllOfArticle = (articleId: number) => {
+    setCart(prev => prev.filter(a => a.id !== articleId));
+  };
+
+  const groupedCart = cart.reduce((acc, item) => {
+    const existing = acc.find(x => x.article.id === item.id);
+    if (existing) {
+      existing.quantity += 1;
+      existing.totalPrice += item.price;
+    } else {
+      acc.push({ article: item, quantity: 1, totalPrice: item.price });
+    }
+    return acc;
+  }, [] as { article: Article; quantity: number; totalPrice: number }[]);
 
   const handleCategoryPress = (category: string) => {
     setSelectedCategory(category);
@@ -311,7 +360,7 @@ export default function PosScreen() {
 
       <View style={styles.contentArea}>
         {currentView === 'HOME' ? (
-          <ScrollView>
+          <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
             <Text style={styles.label}>Välj artiklar:</Text>
             {topSellers.map((item) => (
               <TouchableOpacity
@@ -394,8 +443,71 @@ export default function PosScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.totalText}>Totalt: {total} kr</Text>
-        <TouchableOpacity style={styles.checkoutButton} onPress={handleComplete}>
+        {cart.length > 0 && (
+          <View style={styles.cartContainer}>
+            <View style={styles.cartHeaderRow}>
+              <Text style={styles.cartHeaderTitle}>Valda artiklar ({cart.length} st):</Text>
+              <TouchableOpacity onPress={() => setCart([])} style={styles.clearCartButton}>
+                <Text style={styles.clearCartButtonText}>Töm varukorg</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.cartScrollList} nestedScrollEnabled={true}>
+              {groupedCart.map(({ article, quantity, totalPrice }) => (
+                <View key={article.id} style={styles.cartItemRow}>
+                  <View style={styles.cartItemTextContainer}>
+                    <Text style={styles.cartItemName} numberOfLines={1}>
+                      {article.name}
+                    </Text>
+                    <Text style={styles.cartItemPrice}>
+                      {quantity > 1 ? `${quantity} × ${article.price} kr = ` : ''}{totalPrice} kr
+                    </Text>
+                  </View>
+
+                  <View style={styles.cartControls}>
+                    <TouchableOpacity
+                      style={styles.cartQtyBtn}
+                      onPress={() => handleRemoveOne(article.id)}
+                    >
+                      <Text style={styles.cartQtyBtnText}>−</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.cartQtyNumber}>{quantity}</Text>
+
+                    <TouchableOpacity
+                      style={styles.cartQtyBtn}
+                      onPress={() => setCart([...cart, article])}
+                    >
+                      <Text style={styles.cartQtyBtnText}>+</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.cartDeleteBtn}
+                      onPress={() => handleRemoveAllOfArticle(article.id)}
+                    >
+                      <Text style={styles.cartDeleteBtnText}>Ångra</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.totalRow}>
+          {appliedBonusesCount > 0 && (
+            <Text style={styles.discountText}>
+              Bonus: -{appliedBonusesCount * rewardAmount} kr
+            </Text>
+          )}
+          <Text style={styles.totalText}>Totalt: {total} kr</Text>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.checkoutButton, cart.length === 0 && styles.checkoutButtonDisabled]}
+          onPress={handleComplete}
+          disabled={cart.length === 0}
+        >
           <Text style={styles.checkoutButtonText}>Slutför köp & Skicka SMS</Text>
         </TouchableOpacity>
       </View>
@@ -433,7 +545,7 @@ const styles = StyleSheet.create({
   articleBrand: { fontSize: 12, color: '#666', marginTop: 4 },
   articlePrice: { fontSize: 16, fontWeight: 'bold', color: '#000' },
 
-  categoryRow: { flexDirection: 'row', height: 80, gap: 15, marginTop: 20 },
+  categoryRow: { flexDirection: 'row', height: 96, gap: 15, marginTop: 20 },
   colorCategoryButton: { flex: 1, overflow: 'hidden' },
   bwCategoryButton: { flex: 1, overflow: 'hidden', borderWidth: 1, borderColor: '#ccc' },
   colorStripes: { flexDirection: 'row', flex: 1 },
@@ -458,8 +570,121 @@ const styles = StyleSheet.create({
   brandSquareButton: { width: 150, height: 150, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
   brandButtonText: { fontSize: 22, fontWeight: 'bold', color: '#333' },
 
-  footer: { paddingTop: 20 },
-  totalText: { fontSize: 24, fontWeight: 'bold', textAlign: 'right', marginBottom: 15 },
-  checkoutButton: { backgroundColor: '#84c952', padding: 20, borderRadius: 8, alignItems: 'center' },
+  footer: { paddingTop: 10 },
+  cartContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    padding: 10,
+    marginBottom: 10,
+    maxHeight: 140,
+  },
+  cartHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  cartHeaderTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  clearCartButton: {
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+  clearCartButtonText: {
+    fontSize: 12,
+    color: '#ee0c00',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  cartScrollList: {
+    maxHeight: 90,
+  },
+  cartItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f7f7f7',
+  },
+  cartItemTextContainer: {
+    flex: 1,
+    marginRight: 10,
+  },
+  cartItemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#222',
+  },
+  cartItemPrice: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  cartControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cartQtyBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#eef3f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#d0dfef',
+  },
+  cartQtyBtnText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4188d8',
+    lineHeight: 18,
+  },
+  cartQtyNumber: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    minWidth: 18,
+    textAlign: 'center',
+    color: '#333',
+  },
+  cartDeleteBtn: {
+    backgroundColor: '#fff0f0',
+    borderWidth: 1,
+    borderColor: '#ffd0d0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 4,
+  },
+  cartDeleteBtnText: {
+    fontSize: 12,
+    color: '#ee0c00',
+    fontWeight: '600',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 15,
+    marginBottom: 10,
+  },
+  discountText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#f37f06',
+  },
+  totalText: { fontSize: 24, fontWeight: 'bold', textAlign: 'right' },
+  checkoutButton: { backgroundColor: '#84c952', padding: 18, borderRadius: 8, alignItems: 'center' },
+  checkoutButtonDisabled: { backgroundColor: '#cccccc' },
   checkoutButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' }
 });

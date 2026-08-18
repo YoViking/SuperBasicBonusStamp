@@ -97,9 +97,26 @@ export default function App() {
             id INTEGER PRIMARY KEY,
             threshold REAL NOT NULL,
             reward_amount REAL NOT NULL,
-            bonus_message TEXT NOT NULL
+            bonus_message TEXT NOT NULL,
+            purchase_message TEXT
           );`
         );
+
+        // Safe migration: Add purchase_message column if it doesn't exist
+        try {
+          await db.run(`ALTER TABLE bonus_settings ADD COLUMN purchase_message TEXT;`);
+        } catch (e) {
+          // Column already exists, ignore
+        }
+
+        try {
+          await db.run(
+            `INSERT OR IGNORE INTO bonus_settings (id, threshold, reward_amount, bonus_message, purchase_message)
+             VALUES (1, 1000, 100, 'Tack för ditt köp på Kamera Stockholm! Ditt köp på {köpesumma} kr har registrerats. Grattis! Du har nått en ny bonusnivå och har en belöning att hämta ut vid ditt nästa köp! Du har nu {kvar_till_bonus} kr kvar till din nästa bonus!', 'Tack för ditt köp på Kamera Stockholm! Ditt köp på {köpesumma} kr har registrerats. Du har nu {kvar_till_bonus} kr kvar till din nästa bonus!');`
+          );
+        } catch (e) {
+          // ignore
+        }
 
         await db.run(
           `CREATE TABLE IF NOT EXISTS sales_items (
@@ -136,38 +153,49 @@ export default function App() {
               fontWeight: '600',
               color: '#333333',
             },
-            headerLeft: () => (
-              <Image
-                source={require('./assets/logo.png')}
-                style={{ width: 100, height: 32, marginLeft: 15, resizeMode: 'contain' }}
-              />
-            ),
+            headerLeft: () => null,
+            headerBackVisible: false,
             tabBarActiveTintColor: '#4188d8',
             tabBarInactiveTintColor: '#888888',
+            tabBarLabelPosition: 'beside-icon',
+            tabBarItemStyle: {
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100%',
+            },
             tabBarLabelStyle: {
               fontSize: 16,
               fontWeight: 'bold',
             },
-            tabBarIconStyle: { display: 'none' },
+            tabBarIcon: () => null,
             tabBarStyle: {
               backgroundColor: '#ffffff',
-              borderTopWidth: 0,
-              elevation: 0,
-              shadowOpacity: 0,
-              height: 50,
+              borderTopWidth: 1,
+              borderTopColor: '#e5e5e5',
+              elevation: 4,
+              shadowOpacity: 0.1,
+              height: 65,
+              paddingTop: 8,
+              paddingBottom: 12,
             }
           }}
         >
           <Tab.Screen
             name="Kassa"
             component={PosScreen}
-            options={{ title: 'Kassa' }}
+            options={{
+              title: 'Kassa',
+              headerLeft: () => null,
+            }}
           />
           {/* HÄR ÄR ÄNDRINGEN: Vi använder AdminTabs istället för AdminScreen */}
           <Tab.Screen
             name="Admin"
             component={AdminTabs}
-            options={{ title: 'Inställningar' }}
+            options={{
+              title: 'Inställningar',
+              headerLeft: () => null,
+            }}
           />
         </Tab.Navigator>
       </NavigationContainer>

@@ -30,18 +30,29 @@ export const deleteArticle = async (id: number) => {
 
 /** --- INSTÄLLNINGAR (För Admin) --- **/
 
-export const saveSettings = async (threshold: number, reward: number, message: string) => {
+export const saveSettings = async (
+  threshold: number,
+  reward: number,
+  bonusMessage: string,
+  purchaseMessage?: string
+) => {
   // Vi använder ID 1 för våra inställningar
   return await db.insert(bonusSettings)
     .values({
       id: 1,
       threshold,
       rewardAmount: reward,
-      bonusMessage: message,
+      bonusMessage,
+      purchaseMessage: purchaseMessage ?? '',
     })
     .onConflictDoUpdate({
       target: bonusSettings.id,
-      set: { threshold, rewardAmount: reward, bonusMessage: message },
+      set: {
+        threshold,
+        rewardAmount: reward,
+        bonusMessage,
+        purchaseMessage: purchaseMessage ?? '',
+      },
     });
 };
 
@@ -78,7 +89,7 @@ export const processPurchase = async (phone: string, amount: number, cart: Artic
 
   const bonusDiscount = (config?.rewardAmount ?? 100) * appliedBonusesCount;
   const actualPaidAmount = Math.max(0, amount - bonusDiscount);
-  
+
   const pointsDeduction = threshold * appliedBonusesCount;
   const newBalance = Math.max(0, previousBalance - pointsDeduction) + actualPaidAmount;
 
