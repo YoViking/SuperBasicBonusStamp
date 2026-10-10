@@ -5,17 +5,12 @@
     "jsx": "react-native",
     "allowJs": true,
     "strict": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "noEmit": true,
-    "baseUrl": "./",
-    "paths": {
-      "*": [
-        "node_modules/*"
-      ]
-    }
+    "baseUrl": "./"
   },
   "include": [
     "src/**/*"

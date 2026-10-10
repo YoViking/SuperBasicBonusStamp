@@ -30,7 +30,7 @@ export default function AdminScreen() {
       const numericPrice = parseFloat(price);
       if (isNaN(numericPrice)) return Alert.alert("Fel", "Ange ett pris");
 
-      await addArticle(sku, name, numericPrice);
+      await addArticle(sku, name, numericPrice, 'COLOR');
       Alert.alert("Succé!", `Artikeln ${name} har sparats.`);
       
       // Rensa fält och ladda om listan

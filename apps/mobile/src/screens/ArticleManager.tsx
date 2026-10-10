@@ -11,6 +11,7 @@ import {
 import { addArticle, updateArticle, deleteArticle } from '../db/operations';
 import { db } from '../db/client';
 import { articles } from '../db/schema';
+import BarcodeScannerModal from '../components/BarcodeScannerModal';
 
 export default function ArticleManager() {
   const [sku, setSku] = useState('');
@@ -21,6 +22,14 @@ export default function ArticleManager() {
   const [editingArticleId, setEditingArticleId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormVisible, setIsFormVisible] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  const handleBarcodeScanned = (scannedCode: string) => {
+    setIsScannerOpen(false);
+    const cleaned = scannedCode.trim();
+    setSku(cleaned);
+    Alert.alert("Streckkod avläst!", `SKU sattes till: ${cleaned}`);
+  };
 
   const loadArticles = async () => {
     const data = await db.select().from(articles);
@@ -157,12 +166,20 @@ export default function ArticleManager() {
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="SKU (t.ex. PORTRA-400)"
-            value={sku}
-            onChangeText={setSku}
-          />
+          <View style={styles.skuRow}>
+            <TextInput
+              style={[styles.input, styles.skuInput]}
+              placeholder="SKU / Streckkod (t.ex. 7310...)"
+              value={sku}
+              onChangeText={setSku}
+            />
+            <TouchableOpacity
+              style={styles.skuScanBtn}
+              onPress={() => setIsScannerOpen(true)}
+            >
+              <Text style={styles.skuScanBtnText}>📷 Scanna</Text>
+            </TouchableOpacity>
+          </View>
           <TextInput
             style={styles.input}
             placeholder="Namn (t.ex. Kodak Portra 400)"
@@ -178,7 +195,7 @@ export default function ArticleManager() {
           />
           
           <TouchableOpacity 
-            style={[styles.button, editingArticleId && { backgroundColor: '#28a745' }]} 
+            style={[styles.button, editingArticleId ? { backgroundColor: '#28a745' } : null]} 
             onPress={handleSaveArticle}
           >
             <Text style={styles.buttonText}>
@@ -227,6 +244,14 @@ export default function ArticleManager() {
             </View>
           );
         }}
+      />
+
+      <BarcodeScannerModal
+        visible={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleBarcodeScanned}
+        title="Scanna artikelns streckkod"
+        subtitle="Rikta kameran mot streckkoden på förpackningen"
       />
     </View>
   );
@@ -299,6 +324,31 @@ const styles = StyleSheet.create({
   toggleTextActive: { color: '#fff' },
 
   input: { borderBottomWidth: 1, marginBottom: 15, padding: 8, borderColor: '#ddd', fontSize: 16 },
+  skuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 15,
+  },
+  skuInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  skuScanBtn: {
+    backgroundColor: '#eef3f9',
+    borderWidth: 1,
+    borderColor: '#4188d8',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  skuScanBtnText: {
+    color: '#4188d8',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
   button: { backgroundColor: '#007bff', padding: 15, borderRadius: 5, alignItems: 'center' },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 

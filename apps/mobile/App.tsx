@@ -1,23 +1,5 @@
 import 'react-native-get-random-values';
-import webCrypto from 'expo-standard-web-crypto';
-
-// Polyfill global.crypto safely using defineProperty to bypass read-only restrictions
-try {
-  Object.defineProperty(globalThis, 'crypto', {
-    value: webCrypto,
-    configurable: true,
-    enumerable: true,
-    writable: true,
-  });
-  Object.defineProperty(global, 'crypto', {
-    value: webCrypto,
-    configurable: true,
-    enumerable: true,
-    writable: true,
-  });
-} catch (e) {
-  console.error("Failed to polyfill crypto:", e);
-}
+import 'fast-text-encoding';
 
 import React, { useEffect } from 'react';
 import { Image, Text } from 'react-native';
@@ -26,7 +8,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs'; // NY
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { db } from './src/db/client';
-import 'fast-text-encoding';
 
 // Importera dina skärmar
 import PosScreen from './src/screens/PosScreen';

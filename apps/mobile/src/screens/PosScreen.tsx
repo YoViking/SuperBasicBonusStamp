@@ -21,6 +21,7 @@ import {
   DEFAULT_PURCHASE_MESSAGE,
   DEFAULT_BONUS_MESSAGE,
 } from '../services/smsFormatter';
+import BarcodeScannerModal from '../components/BarcodeScannerModal';
 
 type Article = InferSelectModel<typeof articles>;
 
@@ -41,6 +42,30 @@ export default function PosScreen() {
   const [currentView, setCurrentView] = useState<'HOME' | 'BRAND_SELECTION' | 'ARTICLE_SELECTION'>('HOME');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+
+  // Barcode scanner state
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  const handleBarcodeScanned = (scannedCode: string) => {
+    setIsScannerOpen(false);
+    const cleanedCode = scannedCode.trim().toLowerCase();
+    const found = availableArticles.find(
+      (a) => a.sku?.trim().toLowerCase() === cleanedCode
+    );
+
+    if (found) {
+      setCart((prev) => [...prev, found]);
+      Alert.alert(
+        "Vara tillagd!",
+        `${found.name} (${found.price} kr) lades till i varukorgen.`
+      );
+    } else {
+      Alert.alert(
+        "Vara hittades inte",
+        `Ingen artikel med streckkod/SKU "${scannedCode}" hittades i registret.\n\nTips: Koppla streckkoden till artikeln under fliken Admin > Hantera Artiklar.`
+      );
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -357,6 +382,22 @@ export default function PosScreen() {
           )}
         </View>
       )}
+
+      {/* KNAPP FÖR STRECKKODSSCANNING */}
+      <TouchableOpacity
+        style={styles.scanButton}
+        onPress={() => setIsScannerOpen(true)}
+      >
+        <Text style={styles.scanButtonText}>📷 Scanna streckkod på vara</Text>
+      </TouchableOpacity>
+
+      <BarcodeScannerModal
+        visible={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleBarcodeScanned}
+        title="Scanna vara"
+        subtitle="Rikta kameran mot streckkoden på produkten"
+      />
 
       <View style={styles.contentArea}>
         {currentView === 'HOME' ? (
@@ -686,5 +727,26 @@ const styles = StyleSheet.create({
   totalText: { fontSize: 24, fontWeight: 'bold', textAlign: 'right' },
   checkoutButton: { backgroundColor: '#84c952', padding: 18, borderRadius: 8, alignItems: 'center' },
   checkoutButtonDisabled: { backgroundColor: '#cccccc' },
-  checkoutButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' }
+  checkoutButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  scanButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#4188d8',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  scanButtonText: {
+    color: '#4188d8',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
