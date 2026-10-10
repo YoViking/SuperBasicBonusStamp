@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Kamera Stockholm POS",
+    "slug": "fotobutik-mobile",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "se.kamerastockholm.pos",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Kamera Stockholm behöver tillgång till kameran för att scanna streckkoder på artiklar."
+      }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kamera Stockholm behöver tillgång till kameran för att scanna streckkoder på artiklar."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "fe360562-f503-46bc-96ad-d8afada42df4"
+      }
+    }
+  }
+}
