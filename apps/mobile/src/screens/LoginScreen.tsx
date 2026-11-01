@@ -11,10 +11,10 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { Star, Lightbulb, Rocket } from 'lucide-react-native';
 import { supabase, isSupabaseConfigured } from '../db/supabase';
 import { setDemoModeActive, saveStoreSettings, getStoreSettings } from '../db/operations';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface LoginScreenProps {
   onAuthenticated: () => void;
@@ -22,6 +22,7 @@ interface LoginScreenProps {
 
 export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [isRegistering, setIsRegistering] = useState(false);
@@ -33,19 +34,19 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
   const handleAuth = async () => {
     if (!isSupabaseConfigured) {
       Alert.alert(
-        'Supabase ej konfigurerat än',
-        'Lägg in EXPO_PUBLIC_SUPABASE_URL och EXPO_PUBLIC_SUPABASE_ANON_KEY i apps/mobile/.env, eller klicka på "Kör i Demo-läge" nedan för att testa appen direkt!'
+        t.login.supabaseNotConfiguredTitle,
+        t.login.supabaseNotConfiguredMsg
       );
       return;
     }
 
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Uppgifter saknas', 'Ange både e-postadress och lösenord.');
+      Alert.alert(t.login.missingCredentialsTitle, t.login.missingCredentialsMsg);
       return;
     }
 
     if (isRegistering && !storeName.trim()) {
-      Alert.alert('Butiksnamn saknas', 'Ange namnet på din butik.');
+      Alert.alert(t.login.missingStoreNameTitle, t.login.missingStoreNameMsg);
       return;
     }
 
@@ -74,10 +75,7 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
           });
           onAuthenticated();
         } else {
-          Alert.alert(
-            'Konto skapat!',
-            'Om e-postbekräftelse är påslaget i Supabase, klicka på länken i ditt mejl och logga sedan in.'
-          );
+          Alert.alert(t.login.accountCreatedTitle, t.login.accountCreatedMsg);
           setIsRegistering(false);
         }
       } else {
@@ -90,7 +88,10 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
         onAuthenticated();
       }
     } catch (err: any) {
-      Alert.alert('Inloggningsfel', err.message || 'Något gick fel.');
+      Alert.alert(
+        t.login.authErrorTitle,
+        err.message || t.login.authErrorDefault
+      );
     } finally {
       setLoading(false);
     }
@@ -112,25 +113,23 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
       >
         <View style={styles.headerBox}>
           <View style={styles.logoBadge}>
-            <Star size={34} color="#ffffff" fill="#ffffff" />
+            <Text style={styles.logoEmoji}>⭐</Text>
           </View>
           <Text style={styles.appTitle}>BonusStamp</Text>
-          <Text style={styles.appSubtitle}>
-            Digitalt stämpelkort & bonussystem för din butik
-          </Text>
+          <Text style={styles.appSubtitle}>{t.login.subtitle}</Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
-            {isRegistering ? 'Skapa nytt butikskonto' : 'Logga in i kassan'}
+            {isRegistering ? t.login.registerTitle : t.login.loginTitle}
           </Text>
 
           {isRegistering && (
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Butikens namn</Text>
+              <Text style={styles.label}>{t.login.storeNameLabel}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="t.ex. Café Hörnan eller Salong Klipp"
+                placeholder={t.login.storeNamePlaceholder}
                 value={storeName}
                 onChangeText={setStoreName}
                 placeholderTextColor={colors.placeholder}
@@ -139,10 +138,10 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>E-postadress</Text>
+            <Text style={styles.label}>{t.login.emailLabel}</Text>
             <TextInput
               style={styles.input}
-              placeholder="butik@exempel.se"
+              placeholder={t.login.emailPlaceholder}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -153,10 +152,10 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Lösenord</Text>
+            <Text style={styles.label}>{t.login.passwordLabel}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Minst 6 tecken"
+              placeholder={t.login.passwordPlaceholder}
               secureTextEntry
               value={password}
               onChangeText={setPassword}
@@ -173,7 +172,7 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.primaryButtonText}>
-                {isRegistering ? 'Skapa butik & Logga in' : 'Logga in'}
+                {isRegistering ? t.login.registerBtn : t.login.loginBtn}
               </Text>
             )}
           </TouchableOpacity>
@@ -183,32 +182,27 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
             onPress={() => setIsRegistering(!isRegistering)}
           >
             <Text style={styles.switchModeText}>
-              {isRegistering
-                ? 'Har du redan ett konto? Logga in här'
-                : 'Ny butik? Skapa ett butikskonto här'}
+              {isRegistering ? t.login.switchToLogin : t.login.switchToRegister}
             </Text>
           </TouchableOpacity>
         </View>
 
         {!isSupabaseConfigured && (
           <View style={styles.infoBanner}>
-            <View style={styles.infoTitleRow}>
-              <Lightbulb size={16} color={colors.primaryStrongText} />
-              <Text style={styles.infoTitle}>Supabase är inte kopplat än</Text>
-            </View>
+            <Text style={styles.infoTitle}>{t.login.infoBannerTitle}</Text>
             <Text style={styles.infoText}>
-              Skapa en <Text style={styles.codeText}>.env</Text>-fil i{' '}
-              <Text style={styles.codeText}>apps/mobile/</Text> med dina nycklar från
-              Supabase och kör <Text style={styles.codeText}>supabase/schema.sql</Text>.
+              {t.login.infoBannerText1}{' '}
+              <Text style={styles.codeText}>.env</Text>{' '}
+              {t.login.infoBannerText2}{' '}
+              <Text style={styles.codeText}>apps/mobile/</Text>{' '}
+              {t.login.infoBannerText3}{' '}
+              <Text style={styles.codeText}>supabase/schema.sql</Text>.
             </Text>
           </View>
         )}
 
         <TouchableOpacity style={styles.demoButton} onPress={handleStartDemo}>
-          <Rocket size={18} color={colors.textSecondary} />
-          <Text style={styles.demoButtonText}>
-            Testa i Demo-läge (sparas lokalt på enheten)
-          </Text>
+          <Text style={styles.demoButtonText}>{t.login.demoBtn}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -245,6 +239,9 @@ const createStyles = (colors: ThemeColors) =>
       shadowOpacity: 0.25,
       shadowRadius: 8,
       elevation: 4,
+    },
+    logoEmoji: {
+      fontSize: 34,
     },
     appTitle: {
       fontSize: 30,
@@ -324,16 +321,11 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.primarySoftBorder,
     },
-    infoTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 4,
-    },
     infoTitle: {
       fontSize: 14,
       fontWeight: '700',
       color: colors.primaryStrongText,
+      marginBottom: 4,
     },
     infoText: {
       fontSize: 13,
@@ -351,10 +343,7 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1.5,
       borderColor: colors.borderInput,
       backgroundColor: colors.surface,
-      flexDirection: 'row',
-      justifyContent: 'center',
       alignItems: 'center',
-      gap: 8,
     },
     demoButtonText: {
       color: colors.textSecondary,

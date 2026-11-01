@@ -1,3 +1,5 @@
+import { LanguageCode, translations } from '../i18n/translations';
+
 export const DEFAULT_STAMP_PURCHASE_MESSAGE =
   'Tack för ditt besök hos {butik}! Du har nu {saldo} och har bara {kvar_till_bonus} kvar till din bonus ({bonus}).';
 
@@ -24,22 +26,37 @@ const LEGACY_BONUS_TEMPLATES = new Set([
   'Tack för ditt köp hos {butik}! Ditt köp på {köpesumma} kr har registrerats. Grattis! Du har nått en ny bonusnivå ({bonus} kr) att nyttja vid ditt nästa köp! Du har nu {kvar_till_bonus} kr kvar till nästa bonus.',
 ]);
 
+export function getAllDefaultPurchaseTemplates(): Set<string> {
+  const set = new Set<string>(LEGACY_PURCHASE_TEMPLATES);
+  for (const lang of Object.values(translations)) {
+    set.add(lang.sms.defaultStampPurchase);
+    set.add(lang.sms.defaultPointsPurchase);
+  }
+  return set;
+}
+
+export function getAllDefaultBonusTemplates(): Set<string> {
+  const set = new Set<string>(LEGACY_BONUS_TEMPLATES);
+  for (const lang of Object.values(translations)) {
+    set.add(lang.sms.defaultStampBonus);
+    set.add(lang.sms.defaultPointsBonus);
+  }
+  return set;
+}
+
 export function normalizePurchaseTemplate(
   template: string | undefined,
-  bonusType: 'STAMPS' | 'POINTS'
+  bonusType: 'STAMPS' | 'POINTS',
+  language: LanguageCode = 'sv'
 ): string {
   const trimmed = template?.trim();
+  const langSms = translations[language]?.sms || translations.sv.sms;
   const targetDefault =
     bonusType === 'STAMPS'
-      ? DEFAULT_STAMP_PURCHASE_MESSAGE
-      : DEFAULT_POINTS_PURCHASE_MESSAGE;
+      ? langSms.defaultStampPurchase
+      : langSms.defaultPointsPurchase;
 
-  if (
-    !trimmed ||
-    LEGACY_PURCHASE_TEMPLATES.has(trimmed) ||
-    trimmed === DEFAULT_STAMP_PURCHASE_MESSAGE ||
-    trimmed === DEFAULT_POINTS_PURCHASE_MESSAGE
-  ) {
+  if (!trimmed || getAllDefaultPurchaseTemplates().has(trimmed)) {
     return targetDefault;
   }
   return trimmed;
@@ -47,20 +64,17 @@ export function normalizePurchaseTemplate(
 
 export function normalizeBonusTemplate(
   template: string | undefined,
-  bonusType: 'STAMPS' | 'POINTS'
+  bonusType: 'STAMPS' | 'POINTS',
+  language: LanguageCode = 'sv'
 ): string {
   const trimmed = template?.trim();
+  const langSms = translations[language]?.sms || translations.sv.sms;
   const targetDefault =
     bonusType === 'STAMPS'
-      ? DEFAULT_STAMP_BONUS_MESSAGE
-      : DEFAULT_POINTS_BONUS_MESSAGE;
+      ? langSms.defaultStampBonus
+      : langSms.defaultPointsBonus;
 
-  if (
-    !trimmed ||
-    LEGACY_BONUS_TEMPLATES.has(trimmed) ||
-    trimmed === DEFAULT_STAMP_BONUS_MESSAGE ||
-    trimmed === DEFAULT_POINTS_BONUS_MESSAGE
-  ) {
+  if (!trimmed || getAllDefaultBonusTemplates().has(trimmed)) {
     return targetDefault;
   }
   return trimmed;
@@ -75,6 +89,8 @@ export interface SmsFormatParams {
   rewardDescription?: string;
   currentProgress?: number;
   bonusType?: 'STAMPS' | 'POINTS';
+  language?: LanguageCode;
+  currencySymbol?: string;
 }
 
 export function formatSmsMessage(template: string, params: SmsFormatParams): string {
@@ -82,6 +98,9 @@ export function formatSmsMessage(template: string, params: SmsFormatParams): str
 
   let formatted = template;
   const isPoints = params.bonusType === 'POINTS';
+  const langSms =
+    translations[params.language || 'sv']?.sms || translations.sv.sms;
+  const currency = params.currencySymbol || 'kr';
 
   const amountNum = params.amount ?? 0;
   const amountStr = amountNum.toString();
@@ -89,7 +108,7 @@ export function formatSmsMessage(template: string, params: SmsFormatParams): str
   const remainingStr = remainingNum.toString();
   const thresholdNum = params.threshold ?? (isPoints ? 1000 : 10);
   const thresholdStr = thresholdNum.toString();
-  const storeNameStr = params.storeName?.trim() || 'vår butik';
+  const storeNameStr = params.storeName?.trim() || langSms.ourStoreFallback;
 
   const progressNum =
     params.currentProgress !== undefined
@@ -97,77 +116,77 @@ export function formatSmsMessage(template: string, params: SmsFormatParams): str
       : Math.max(0, thresholdNum - remainingNum);
 
   const saldoStr = isPoints
-    ? `${progressNum} av ${thresholdStr} kr`
-    : `${progressNum} av ${thresholdStr} stämplar`;
+    ? `${progressNum} ${langSms.ofWord} ${thresholdStr} ${currency}`
+    : `${progressNum} ${langSms.ofWord} ${thresholdStr} ${langSms.stampPlural}`;
 
   const remainingWithUnitStr = isPoints
-    ? `${remainingStr} kr`
+    ? `${remainingStr} ${currency}`
     : remainingNum === 1
-    ? '1 stämpel'
-    : `${remainingStr} stämplar`;
+    ? `1 ${langSms.stampSingular}`
+    : `${remainingStr} ${langSms.stampPlural}`;
 
   const stampsAddedStr =
-    amountNum === 1 ? '1 stämpel' : `${amountStr} stämplar`;
-  const purchaseAmountStr = `${amountStr} kr`;
+    amountNum === 1
+      ? `1 ${langSms.stampSingular}`
+      : `${amountStr} ${langSms.stampPlural}`;
+  const purchaseAmountStr = `${amountStr} ${currency}`;
 
   const rewardNum = params.reward ?? (isPoints ? 100 : 1);
   const rewardStr =
     !isPoints && params.rewardDescription?.trim()
       ? params.rewardDescription.trim()
       : isPoints
-      ? `${rewardNum} kr rabatt`
-      : `${rewardNum} gratis vara`;
+      ? `${rewardNum} ${currency} ${langSms.discountWord}`
+      : `${rewardNum} ${langSms.freeItemFallback}`;
 
   const thresholdWithUnitStr = isPoints
-    ? `${thresholdStr} kr`
-    : `${thresholdStr} stämplar`;
+    ? `${thresholdStr} ${currency}`
+    : `${thresholdStr} ${langSms.stampPlural}`;
 
-  // 1. Butiksnamn & Saldo (fångar ev. efterföljande enhet så den inte dubbleras)
+  // 1. Butiksnamn & Saldo
   formatted = formatted
     .replace(/\{butiksnamn\}/gi, storeNameStr)
     .replace(/\{butik\}/gi, storeNameStr)
     .replace(/\{store\}/gi, storeNameStr)
-    .replace(/\{saldo\}(\s*(?:stämplar|stämpel|kr|poäng))?/gi, saldoStr);
+    .replace(/\{laden\}/gi, storeNameStr)
+    .replace(/\{tienda\}/gi, storeNameStr)
+    .replace(
+      /\{(saldo|balance|guthaben)\}(\s*(?:stämplar|stämpel|stamps|stamp|stempel|sellos|sello|kr|£|\$|€|sek|gbp|usd|eur|poäng|points|punkte|puntos))?/gi,
+      saldoStr
+    );
 
-  // 2. Svenska taggar för köp/stämplar och bonus
+  // 2. Taggar för köp/stämplar och bonus (sv, en, de, es)
   formatted = formatted
-    .replace(/\{köpesumma\}(\s*kr)?/gi, purchaseAmountStr)
-    .replace(/\{belopp\}(\s*kr)?/gi, purchaseAmountStr)
-    .replace(/\{summa\}(\s*kr)?/gi, purchaseAmountStr)
-    .replace(/\{stämplar\}(\s*(?:stämplar|stämpel|st))?/gi, stampsAddedStr)
-    .replace(/\{antal\}(\s*(?:stämplar|stämpel|st))?/gi, stampsAddedStr)
     .replace(
-      /\{kvar_till_bonus\}(\s*(?:stämplar|stämpel|kr|poäng))?/gi,
+      /\{(köpesumma|belopp|summa|betrag|importe)\}(\s*(?:kr|£|\$|€|sek|gbp|usd|eur))?/gi,
+      purchaseAmountStr
+    )
+    .replace(
+      /\{(stämplar|antal|stamps|stempel|sellos)\}(\s*(?:stämplar|stämpel|st|stamps|stamp|stempel|sellos|sello))?/gi,
+      stampsAddedStr
+    )
+    .replace(
+      /\{(kvar_till_bonus|kvar|remaining|rest|restante)\}(\s*(?:stämplar|stämpel|stamps|stamp|stempel|sellos|sello|kr|£|\$|€|sek|gbp|usd|eur|poäng|points|punkte|puntos))?/gi,
       remainingWithUnitStr
     )
     .replace(
-      /\{kvar\}(\s*(?:stämplar|stämpel|kr|poäng))?/gi,
-      remainingWithUnitStr
+      /\{(bonusbelopp|belöning|bonus|reward|prämie|recompensa)\}(\s*(?:kr|£|\$|€|sek|gbp|usd|eur)(?:\s*(?:rabatt|discount|descuento))?)?/gi,
+      rewardStr
     )
-    .replace(/\{bonusbelopp\}(\s*kr(?:\s*rabatt)?)?/gi, rewardStr)
-    .replace(/\{belöning\}(\s*kr(?:\s*rabatt)?)?/gi, rewardStr)
-    .replace(/\{bonus\}(\s*kr(?:\s*rabatt)?)?/gi, rewardStr)
     .replace(
-      /\{bonusgräns\}(\s*(?:stämplar|stämpel|kr|poäng))?/gi,
+      /\{(bonusgräns|threshold|schwelle|límite)\}(\s*(?:stämplar|stämpel|stamps|stamp|stempel|sellos|sello|kr|£|\$|€|sek|gbp|usd|eur|poäng|points|punkte|puntos))?/gi,
       thresholdWithUnitStr
     );
 
-  // 3. Engelska taggar
-  formatted = formatted
-    .replace(/\{amount\}(\s*kr)?/gi, isPoints ? purchaseAmountStr : stampsAddedStr)
-    .replace(
-      /\{remaining\}(\s*(?:stämplar|stämpel|kr|poäng))?/gi,
-      remainingWithUnitStr
-    )
-    .replace(/\{reward\}(\s*kr(?:\s*rabatt)?)?/gi, rewardStr)
-    .replace(
-      /\{threshold\}(\s*(?:stämplar|stämpel|kr|poäng))?/gi,
-      thresholdWithUnitStr
-    );
+  // 3. {amount}
+  formatted = formatted.replace(
+    /\{amount\}(\s*(?:kr|£|\$|€|sek|gbp|usd|eur))?/gi,
+    isPoints ? purchaseAmountStr : stampsAddedStr
+  );
 
   // 4. Smart ersättning för 'X kr' eller '[X]'
   let xIndex = 0;
-  formatted = formatted.replace(/\bX(?=\s*kr\b)/gi, () => {
+  formatted = formatted.replace(/\bX(?=\s*(?:kr|£|\$|€)\b)/gi, () => {
     xIndex++;
     if (xIndex === 1) return amountStr;
     if (xIndex === 2) return remainingStr;

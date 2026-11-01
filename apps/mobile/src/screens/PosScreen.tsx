@@ -13,18 +13,6 @@ import {
   ScrollView,
 } from 'react-native';
 import {
-  Star,
-  Sparkles,
-  UserCheck,
-  Gift,
-  Check,
-  Minus,
-  Plus,
-  ScanBarcode,
-  Flame,
-  X,
-} from 'lucide-react-native';
-import {
   Article,
   StoreSettings,
   getStoreSettings,
@@ -35,17 +23,17 @@ import {
 } from '../db/operations';
 import {
   formatSmsMessage,
-  DEFAULT_STAMP_PURCHASE_MESSAGE,
-  DEFAULT_STAMP_BONUS_MESSAGE,
-  DEFAULT_POINTS_PURCHASE_MESSAGE,
-  DEFAULT_POINTS_BONUS_MESSAGE,
+  normalizePurchaseTemplate,
+  normalizeBonusTemplate,
 } from '../services/smsFormatter';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function PosScreen() {
   const isFocused = useIsFocused();
   const { colors } = useTheme();
+  const { language, currencySymbol: currency, t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
@@ -92,7 +80,7 @@ export default function PosScreen() {
   const posMode = storeSettings?.posMode ?? 'QUICK';
   const threshold = Math.max(1, storeSettings?.threshold ?? (bonusType === 'STAMPS' ? 10 : 1000));
   const rewardAmount = storeSettings?.rewardAmount ?? (bonusType === 'STAMPS' ? 1 : 100);
-  const rewardDescription = storeSettings?.rewardDescription || '1 gratis vara';
+  const rewardDescription = storeSettings?.rewardDescription || t.pos.defaultRewardDesc;
 
   const resetCustomerState = () => {
     setCustomerSearched(false);
@@ -113,7 +101,7 @@ export default function PosScreen() {
 
   const searchCustomer = async () => {
     if (!phone.trim()) {
-      Alert.alert('Ange telefonnummer', 'Skriv in kundens telefonnummer först.');
+      Alert.alert(t.pos.enterPhoneTitle, t.pos.enterPhoneMsg);
       return;
     }
     try {
@@ -135,19 +123,19 @@ export default function PosScreen() {
         setAppliedBonusesCount(0);
       }
     } catch (error: any) {
-      Alert.alert('Fel vid sökning', error.message);
+      Alert.alert(t.pos.searchErrorTitle, error.message);
     }
   };
 
   const handleDeleteCustomer = () => {
     if (!customerId) return;
     Alert.alert(
-      'Radera kund (GDPR)',
-      'Är du säker på att du vill radera kunden och alla sparade stämplar/poäng? Detta kan inte ångras.',
+      t.pos.gdprAlertTitle,
+      t.pos.gdprAlertMsg,
       [
-        { text: 'Avbryt', style: 'cancel' },
+        { text: t.pos.cancel, style: 'cancel' },
         {
-          text: 'Ja, ta bort',
+          text: t.pos.gdprConfirmBtn,
           style: 'destructive',
           onPress: async () => {
             try {
@@ -155,7 +143,10 @@ export default function PosScreen() {
               setPhone('');
               resetCustomerState();
             } catch (error: any) {
-              Alert.alert('Fel', 'Kunde inte radera kunden: ' + error.message);
+              Alert.alert(
+                t.pos.errorTitle,
+                t.pos.deleteCustomerError + error.message
+              );
             }
           },
         },
@@ -173,13 +164,13 @@ export default function PosScreen() {
     if (found) {
       setCart((prev) => [...prev, found]);
       Alert.alert(
-        'Vara tillagd!',
-        `${found.name} (${found.price} kr) lades till i varukorgen.`
+        t.pos.itemAddedTitle,
+        t.pos.itemAddedMsg(found.name, `${found.price} ${currency}`)
       );
     } else {
       Alert.alert(
-        'Vara hittades inte',
-        `Ingen artikel med streckkod/SKU "${scannedCode}" hittades.\n\nTips: Koppla streckkoden under Inställningar > Artiklar.`
+        t.pos.itemNotFoundTitle,
+        t.pos.itemNotFoundMsg(scannedCode)
       );
     }
   };
@@ -218,18 +209,17 @@ export default function PosScreen() {
     const progressAfter = newBalanceAfter % activeThreshold;
     const remainingAfter = activeThreshold - progressAfter;
 
-    const defaultPurchase =
-      activeSettings.bonusType === 'STAMPS'
-        ? DEFAULT_STAMP_PURCHASE_MESSAGE
-        : DEFAULT_POINTS_PURCHASE_MESSAGE;
-    const defaultBonus =
-      activeSettings.bonusType === 'STAMPS'
-        ? DEFAULT_STAMP_BONUS_MESSAGE
-        : DEFAULT_POINTS_BONUS_MESSAGE;
-
     const templateToUse = bonusEarned
-      ? activeSettings.bonusMessage?.trim() || defaultBonus
-      : activeSettings.purchaseMessage?.trim() || defaultPurchase;
+      ? normalizeBonusTemplate(
+          activeSettings.bonusMessage,
+          activeSettings.bonusType,
+          language
+        )
+      : normalizePurchaseTemplate(
+          activeSettings.purchaseMessage,
+          activeSettings.bonusType,
+          language
+        );
 
     let msg = formatSmsMessage(templateToUse, {
       amount: addedVal,
@@ -240,10 +230,12 @@ export default function PosScreen() {
       rewardDescription: activeSettings.rewardDescription,
       currentProgress: progressAfter,
       bonusType: activeSettings.bonusType,
+      language,
+      currencySymbol: currency,
     });
 
     if (isNew) {
-      msg += `\n\nInfo: Vi sparar ditt nummer för bonussystemet hos ${activeSettings.storeName}. Svara STOPP om du vill gå ur.`;
+      msg += t.pos.gdprSmsFooter(activeSettings.storeName);
     }
 
     const url = `sms:${number}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
@@ -253,18 +245,18 @@ export default function PosScreen() {
   const handleComplete = async () => {
     try {
       if (!phone.trim()) {
-        Alert.alert('Telefonnummer saknas', 'Ange kundens telefonnummer först.');
+        Alert.alert(t.pos.missingPhoneTitle, t.pos.missingPhoneMsg);
         return;
       }
 
       if (rawAddedValue <= 0 && appliedBonusesCount === 0) {
         Alert.alert(
-          'Inget att registrera',
+          t.pos.nothingToRegisterTitle,
           posMode === 'ARTICLES'
-            ? 'Välj minst en artikel eller lös in en bonus.'
+            ? t.pos.nothingToRegisterArticles
             : bonusType === 'STAMPS'
-            ? 'Välj minst 1 stämpel eller lös in en bonus.'
-            : 'Ange köpesumma eller lös in en bonus.'
+            ? t.pos.nothingToRegisterStamps
+            : t.pos.nothingToRegisterPoints
         );
         return;
       }
@@ -281,21 +273,17 @@ export default function PosScreen() {
         appliedBonusesCount
       );
 
-      const title = bonusEarned
-        ? 'Ny Bonus Uppnådd!'
-        : 'Registrerat!';
-      const message = bonusEarned
-        ? 'Kunden har nått en ny bonusnivå!\n\nVill du skicka ett SMS till kunden?'
-        : 'Köpet/stämpeln har sparats.\n\nVill du skicka ett bekräftelse-SMS till kunden?';
+      const title = bonusEarned ? t.pos.newBonusTitle : t.pos.registeredTitle;
+      const message = bonusEarned ? t.pos.newBonusMsg : t.pos.registeredMsg;
 
       Alert.alert(title, message, [
         {
-          text: 'Nej, klart',
+          text: t.pos.noDoneBtn,
           style: 'cancel',
           onPress: resetAllAfterPurchase,
         },
         {
-          text: 'Ja, öppna SMS',
+          text: t.pos.yesOpenSmsBtn,
           onPress: () => {
             sendSms(
               phone.trim(),
@@ -310,7 +298,7 @@ export default function PosScreen() {
         },
       ]);
     } catch (error: any) {
-      Alert.alert('Ett fel uppstod', error.message);
+      Alert.alert(t.pos.errorTitle, error.message);
     }
   };
 
@@ -339,7 +327,7 @@ export default function PosScreen() {
 
   // Kategorier & Toppsäljare för Artikelläge
   const uniqueCategories = Array.from(
-    new Set(availableArticles.map((a) => a.category || 'Allmänt'))
+    new Set(availableArticles.map((a) => a.category || t.articles.defaultCategory))
   );
 
   const topSellers = [...availableArticles]
@@ -352,7 +340,9 @@ export default function PosScreen() {
       ? availableArticles
       : selectedCategory === 'TOP'
       ? topSellers
-      : availableArticles.filter((a) => (a.category || 'Allmänt') === selectedCategory);
+      : availableArticles.filter(
+          (a) => (a.category || t.articles.defaultCategory) === selectedCategory
+        );
 
   // Beräkning av kundens nuvarande progress (efter ev. valda bonusar)
   const effectiveBalance = Math.max(0, currentBalance - appliedBonusesCount * threshold);
@@ -362,22 +352,26 @@ export default function PosScreen() {
 
   return (
     <View style={styles.container}>
-      {/* BUTIKSNAMN HÖGST UPP */}
+      {/* BUTIKS-BADGE HÖGST UPP */}
       <View style={styles.storeHeaderRow}>
         <Text style={styles.storeNameText}>
-          {storeSettings?.storeName || 'Min Butik'}
+          {storeSettings?.storeName || t.pos.defaultStoreName}
         </Text>
+        <View style={styles.modePill}>
+          <Text style={styles.modePillText}>
+            {bonusType === 'STAMPS' ? t.pos.stampsBadge : t.pos.pointsBadge} •{' '}
+            {posMode === 'QUICK' ? t.pos.quickBadge : t.pos.articlesBadge}
+          </Text>
+        </View>
       </View>
 
       {/* SÖK KUND PÅ TELEFONNUMMER */}
       <View style={styles.searchRow}>
         <TextInput
           style={styles.phoneInput}
-          placeholder="Telefonnummer..."
+          placeholder={t.pos.phonePlaceholder}
           placeholderTextColor={colors.placeholder}
           keyboardType="phone-pad"
-          multiline={false}
-          numberOfLines={1}
           value={phone}
           onChangeText={(text) => {
             setPhone(text);
@@ -385,7 +379,7 @@ export default function PosScreen() {
           }}
         />
         <TouchableOpacity style={styles.searchButton} onPress={searchCustomer}>
-          <Text style={styles.searchButtonText}>Sök Kund</Text>
+          <Text style={styles.searchButtonText}>{t.pos.searchCustomerBtn}</Text>
         </TouchableOpacity>
       </View>
 
@@ -393,19 +387,12 @@ export default function PosScreen() {
       {customerSearched && (
         <View style={styles.customerCard}>
           <View style={styles.customerHeaderRow}>
-            <View style={styles.customerBadgeRow}>
-              {isNewCustomer ? (
-                <Sparkles size={15} color={colors.primaryStrongText} />
-              ) : (
-                <UserCheck size={15} color={colors.primaryStrongText} />
-              )}
-              <Text style={styles.customerBadgeText}>
-                {isNewCustomer ? 'Ny kund' : 'Registrerad kund'}
-              </Text>
-            </View>
+            <Text style={styles.customerBadgeText}>
+              {isNewCustomer ? t.pos.newCustomerBadge : t.pos.existingCustomerBadge}
+            </Text>
             {customerId && (
               <TouchableOpacity onPress={handleDeleteCustomer}>
-                <Text style={styles.gdprDeleteText}>Ta bort kund (GDPR)</Text>
+                <Text style={styles.gdprDeleteText}>{t.pos.gdprDeleteBtn}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -413,8 +400,12 @@ export default function PosScreen() {
           {bonusType === 'STAMPS' ? (
             <View style={styles.stampSection}>
               <Text style={styles.progressSummaryText}>
-                {currentProgress} av {threshold} stämplar ({remainingToNext} kvar till{' '}
-                {rewardDescription})
+                {t.pos.stampsProgressText(
+                  currentProgress,
+                  threshold,
+                  remainingToNext,
+                  rewardDescription
+                )}
               </Text>
 
               {threshold <= 20 ? (
@@ -429,15 +420,14 @@ export default function PosScreen() {
                           isFilled && styles.stampCircleFilled,
                         ]}
                       >
-                        {isFilled ? (
-                          <Star
-                            size={16}
-                            color={colors.warningText}
-                            fill={colors.warningText}
-                          />
-                        ) : (
-                          <Text style={styles.stampCircleText}>{idx + 1}</Text>
-                        )}
+                        <Text
+                          style={[
+                            styles.stampCircleText,
+                            isFilled && styles.stampCircleTextFilled,
+                          ]}
+                        >
+                          {isFilled ? '⭐' : idx + 1}
+                        </Text>
                       </View>
                     );
                   })}
@@ -453,8 +443,13 @@ export default function PosScreen() {
           ) : (
             <View style={styles.stampSection}>
               <Text style={styles.progressSummaryText}>
-                {currentProgress} / {threshold} kr ({remainingToNext} kr kvar till{' '}
-                {rewardAmount} kr bonus)
+                {t.pos.pointsProgressText(
+                  currentProgress,
+                  threshold,
+                  remainingToNext,
+                  rewardAmount,
+                  currency
+                )}
               </Text>
               <View style={styles.progressBarBg}>
                 <View
@@ -467,12 +462,9 @@ export default function PosScreen() {
           {/* BONUS ATT LÖSA IN */}
           {availableBonuses > 0 && (
             <View style={styles.bonusBox}>
-              <View style={styles.bonusBoxTitleRow}>
-                <Gift size={16} color={colors.warningText} />
-                <Text style={styles.bonusBoxTitle}>
-                  Kunden har {availableBonuses} st bonus att hämta ut!
-                </Text>
-              </View>
+              <Text style={styles.bonusBoxTitle}>
+                {t.pos.bonusAvailableTitle(availableBonuses)}
+              </Text>
 
               {availableBonuses - appliedBonusesCount > 0 && (
                 <TouchableOpacity
@@ -480,25 +472,22 @@ export default function PosScreen() {
                   onPress={() => setAppliedBonusesCount((prev) => prev + 1)}
                 >
                   <Text style={styles.redeemButtonText}>
-                    Utnyttja 1 bonus (
-                    {bonusType === 'STAMPS'
-                      ? rewardDescription
-                      : `-${rewardAmount} kr`}
-                    )
+                    {t.pos.redeemBonusBtn(
+                      bonusType === 'STAMPS'
+                        ? rewardDescription
+                        : `-${rewardAmount} ${currency}`
+                    )}
                   </Text>
                 </TouchableOpacity>
               )}
 
               {appliedBonusesCount > 0 && (
                 <View style={styles.appliedBonusRow}>
-                  <View style={styles.appliedBonusTextRow}>
-                    <Check size={16} color={colors.success} />
-                    <Text style={styles.appliedBonusText}>
-                      {appliedBonusesCount} st bonus vald att lösas in
-                    </Text>
-                  </View>
+                  <Text style={styles.appliedBonusText}>
+                    {t.pos.appliedBonusText(appliedBonusesCount)}
+                  </Text>
                   <TouchableOpacity onPress={() => setAppliedBonusesCount(0)}>
-                    <Text style={styles.undoBonusText}>Ångra</Text>
+                    <Text style={styles.undoBonusText}>{t.pos.undoBtn}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -513,20 +502,22 @@ export default function PosScreen() {
           <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
             {bonusType === 'STAMPS' ? (
               <View style={styles.quickCard}>
-                <Text style={styles.quickCardTitle}>Hur många stämplar vill du ge?</Text>
+                <Text style={styles.quickCardTitle}>
+                  {t.pos.howManyStampsTitle}
+                </Text>
 
                 <View style={styles.stampStepperRow}>
                   <TouchableOpacity
                     style={styles.stepperBtn}
                     onPress={() => setQuickStamps((prev) => Math.max(0, prev - 1))}
                   >
-                    <Minus size={28} color={colors.primaryStrongText} />
+                    <Text style={styles.stepperBtnText}>−</Text>
                   </TouchableOpacity>
 
                   <View style={styles.stampCountDisplay}>
                     <Text style={styles.stampCountNumber}>+{quickStamps}</Text>
                     <Text style={styles.stampCountLabel}>
-                      {quickStamps === 1 ? 'stämpel' : 'stämplar'}
+                      {quickStamps === 1 ? t.pos.stampSingular : t.pos.stampPlural}
                     </Text>
                   </View>
 
@@ -534,7 +525,7 @@ export default function PosScreen() {
                     style={styles.stepperBtn}
                     onPress={() => setQuickStamps((prev) => prev + 1)}
                   >
-                    <Plus size={28} color={colors.primaryStrongText} />
+                    <Text style={styles.stepperBtnText}>＋</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -554,7 +545,7 @@ export default function PosScreen() {
                           quickStamps === num && styles.presetChipTextActive,
                         ]}
                       >
-                        +{num} st
+                        +{num}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -562,10 +553,12 @@ export default function PosScreen() {
               </View>
             ) : (
               <View style={styles.quickCard}>
-                <Text style={styles.quickCardTitle}>Ange köpesumma (kr)</Text>
+                <Text style={styles.quickCardTitle}>
+                  {t.pos.enterPurchaseAmountTitle(currency)}
+                </Text>
                 <TextInput
                   style={styles.quickAmountInput}
-                  placeholder="0 kr"
+                  placeholder={`0 ${currency}`}
                   placeholderTextColor={colors.placeholder}
                   keyboardType="numeric"
                   value={quickAmount}
@@ -580,7 +573,9 @@ export default function PosScreen() {
                         setQuickAmount(((parseFloat(quickAmount) || 0) + val).toString())
                       }
                     >
-                      <Text style={styles.presetChipText}>+{val} kr</Text>
+                      <Text style={styles.presetChipText}>
+                        +{val} {currency}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                   {quickAmount.length > 0 && (
@@ -589,7 +584,7 @@ export default function PosScreen() {
                       onPress={() => setQuickAmount('')}
                     >
                       <Text style={[styles.presetChipText, { color: colors.dangerText }]}>
-                        Rensa
+                        {t.pos.clearBtn}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -604,16 +599,15 @@ export default function PosScreen() {
               style={styles.scanButton}
               onPress={() => setIsScannerOpen(true)}
             >
-              <ScanBarcode size={18} color={colors.primaryText} />
-              <Text style={styles.scanButtonText}>Scanna streckkod på vara</Text>
+              <Text style={styles.scanButtonText}>{t.pos.scanBarcodeBtn}</Text>
             </TouchableOpacity>
 
             <BarcodeScannerModal
               visible={isScannerOpen}
               onClose={() => setIsScannerOpen(false)}
               onScan={handleBarcodeScanned}
-              title="Scanna vara"
-              subtitle="Rikta kameran mot streckkoden på produkten"
+              title={t.pos.scanModalTitle}
+              subtitle={t.pos.scanModalSubtitle}
             />
 
             {/* KATEGORI-FILTER */}
@@ -632,7 +626,7 @@ export default function PosScreen() {
                       selectedCategory === 'ALLA' && styles.catTabTextActive,
                     ]}
                   >
-                    Alla ({availableArticles.length})
+                    {t.pos.allCategory(availableArticles.length)}
                   </Text>
                 </TouchableOpacity>
 
@@ -644,21 +638,13 @@ export default function PosScreen() {
                     ]}
                     onPress={() => setSelectedCategory('TOP')}
                   >
-                    <Flame
-                      size={14}
-                      color={
-                        selectedCategory === 'TOP'
-                          ? '#ffffff'
-                          : colors.textSecondary
-                      }
-                    />
                     <Text
                       style={[
                         styles.catTabText,
                         selectedCategory === 'TOP' && styles.catTabTextActive,
                       ]}
                     >
-                      Toppsäljare
+                      {t.pos.topSellersCategory}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -691,8 +677,7 @@ export default function PosScreen() {
               ListEmptyComponent={
                 <View style={styles.emptyArticlesBox}>
                   <Text style={styles.emptyArticlesText}>
-                    Inga artiklar hittades. Lägg till varor under Inställningar &gt;
-                    Artiklar, eller byt till Snabbläge!
+                    {t.pos.emptyArticlesText}
                   </Text>
                 </View>
               }
@@ -705,7 +690,9 @@ export default function PosScreen() {
                     <Text style={styles.articleName}>{item.name}</Text>
                     <Text style={styles.articleCategory}>{item.category}</Text>
                   </View>
-                  <Text style={styles.articlePrice}>+{item.price} kr</Text>
+                  <Text style={styles.articlePrice}>
+                    +{item.price} {currency}
+                  </Text>
                 </TouchableOpacity>
               )}
             />
@@ -719,10 +706,10 @@ export default function PosScreen() {
           <View style={styles.cartContainer}>
             <View style={styles.cartHeaderRow}>
               <Text style={styles.cartHeaderTitle}>
-                Varukorg ({cart.length} st):
+                {t.pos.cartTitle(cart.length)}
               </Text>
               <TouchableOpacity onPress={() => setCart([])}>
-                <Text style={styles.clearCartText}>Töm varukorg</Text>
+                <Text style={styles.clearCartText}>{t.pos.clearCartBtn}</Text>
               </TouchableOpacity>
             </View>
 
@@ -734,8 +721,10 @@ export default function PosScreen() {
                       {article.name}
                     </Text>
                     <Text style={styles.cartItemPrice}>
-                      {quantity > 1 ? `${quantity} × ${article.price} kr = ` : ''}
-                      {totalPrice} kr
+                      {quantity > 1
+                        ? `${quantity} × ${article.price} ${currency} = `
+                        : ''}
+                      {totalPrice} {currency}
                     </Text>
                   </View>
 
@@ -744,20 +733,20 @@ export default function PosScreen() {
                       style={styles.cartQtyBtn}
                       onPress={() => handleRemoveOne(article.id)}
                     >
-                      <Minus size={14} color={colors.primaryStrongText} />
+                      <Text style={styles.cartQtyBtnText}>−</Text>
                     </TouchableOpacity>
                     <Text style={styles.cartQtyNumber}>{quantity}</Text>
                     <TouchableOpacity
                       style={styles.cartQtyBtn}
                       onPress={() => setCart([...cart, article])}
                     >
-                      <Plus size={14} color={colors.primaryStrongText} />
+                      <Text style={styles.cartQtyBtnText}>+</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.cartDeleteBtn}
                       onPress={() => handleRemoveAllOfArticle(article.id)}
                     >
-                      <X size={16} color={colors.dangerText} />
+                      <Text style={styles.cartDeleteBtnText}>✕</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -769,18 +758,18 @@ export default function PosScreen() {
         <View style={styles.totalRow}>
           {appliedBonusesCount > 0 && (
             <Text style={styles.discountText}>
-              Inlöst bonus:{' '}
+              {t.pos.redeemedBonusLabel}{' '}
               {bonusType === 'STAMPS'
                 ? `${appliedBonusesCount} × ${rewardDescription}`
-                : `-${appliedBonusesCount * rewardAmount} kr`}
+                : `-${appliedBonusesCount * rewardAmount} ${currency}`}
             </Text>
           )}
           <Text style={styles.totalText}>
             {bonusType === 'STAMPS' && posMode === 'QUICK'
-              ? `Att registrera: +${quickStamps} stämpel`
+              ? t.pos.toRegisterStamps(quickStamps)
               : bonusType === 'STAMPS' && posMode === 'ARTICLES'
-              ? `Totalt: ${totalToPayKr} kr (+${cart.length} stämplar)`
-              : `Totalt: ${totalToPayKr} kr`}
+              ? t.pos.totalWithStamps(`${totalToPayKr} ${currency}`, cart.length)
+              : t.pos.totalAmount(`${totalToPayKr} ${currency}`)}
           </Text>
         </View>
 
@@ -794,8 +783,8 @@ export default function PosScreen() {
         >
           <Text style={styles.checkoutButtonText}>
             {bonusType === 'STAMPS'
-              ? 'Registrera stämpel & Skicka SMS'
-              : 'Slutför köp & Skicka SMS'}
+              ? t.pos.checkoutStampsBtn
+              : t.pos.checkoutPointsBtn}
           </Text>
         </TouchableOpacity>
       </View>
@@ -817,6 +806,17 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '800',
       color: colors.text,
     },
+    modePill: {
+      backgroundColor: colors.modePillBg,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    modePillText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+    },
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -825,25 +825,21 @@ const createStyles = (colors: ThemeColors) =>
     },
     phoneInput: {
       flex: 1,
-      minWidth: 0,
-      height: 48,
-      fontSize: 16,
-      lineHeight: 22,
+      fontSize: 20,
       borderWidth: 1,
       borderColor: colors.borderInput,
       borderRadius: 10,
       paddingHorizontal: 14,
-      paddingVertical: 10,
+      paddingVertical: 12,
       backgroundColor: colors.surface,
       color: colors.text,
     },
     searchButton: {
-      height: 48,
       backgroundColor: colors.primary,
       paddingHorizontal: 18,
+      paddingVertical: 14,
       borderRadius: 10,
       justifyContent: 'center',
-      alignItems: 'center',
     },
     searchButtonText: {
       color: '#fff',
@@ -863,11 +859,6 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 8,
-    },
-    customerBadgeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
     },
     customerBadgeText: {
       fontSize: 14,
@@ -913,6 +904,10 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '700',
       color: colors.stampCircleText,
     },
+    stampCircleTextFilled: {
+      fontSize: 16,
+      color: colors.warningText,
+    },
     progressBarBg: {
       height: 12,
       backgroundColor: colors.border,
@@ -930,16 +925,11 @@ const createStyles = (colors: ThemeColors) =>
       borderTopWidth: 1,
       borderTopColor: colors.borderSubtle,
     },
-    bonusBoxTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 8,
-    },
     bonusBoxTitle: {
       fontSize: 14,
       fontWeight: '700',
       color: colors.warningText,
+      marginBottom: 8,
     },
     redeemButton: {
       backgroundColor: colors.warning,
@@ -958,11 +948,6 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       marginTop: 8,
-    },
-    appliedBonusTextRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
     },
     appliedBonusText: {
       color: colors.success,
@@ -1008,6 +993,11 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    stepperBtnText: {
+      fontSize: 30,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
     },
     stampCountDisplay: {
       alignItems: 'center',
@@ -1070,10 +1060,7 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: 10,
       paddingVertical: 11,
       paddingHorizontal: 16,
-      flexDirection: 'row',
-      justifyContent: 'center',
       alignItems: 'center',
-      gap: 8,
       marginBottom: 10,
     },
     scanButtonText: {
@@ -1089,9 +1076,6 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.borderInput,
       marginRight: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
     },
     catTabActive: {
       backgroundColor: colors.primary,
@@ -1177,6 +1161,7 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.primarySoftBorder,
     },
+    cartQtyBtnText: { fontSize: 15, fontWeight: '700', color: colors.primaryStrongText },
     cartQtyNumber: {
       fontSize: 14,
       fontWeight: '700',
@@ -1188,6 +1173,7 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 6,
       paddingVertical: 2,
     },
+    cartDeleteBtnText: { fontSize: 14, color: colors.dangerText, fontWeight: '700' },
     totalRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',

@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { Flashlight, FlashlightOff, X } from 'lucide-react-native';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface BarcodeScannerModalProps {
   visible: boolean;
@@ -23,12 +23,16 @@ export default function BarcodeScannerModal({
   visible,
   onClose,
   onScan,
-  title = 'Scanna streckkod',
-  subtitle = 'Rikta kameran mot streckkoden på produkten',
+  title,
+  subtitle,
 }: BarcodeScannerModalProps) {
+  const { t } = useLanguage();
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanned, setIsScanned] = useState(false);
   const [torch, setTorch] = useState(false);
+
+  const modalTitle = title || t.scanner.defaultTitle;
+  const modalSubtitle = subtitle || t.scanner.defaultSubtitle;
 
   useEffect(() => {
     if (visible) {
@@ -61,19 +65,19 @@ export default function BarcodeScannerModal({
       <View style={styles.container}>
         {!permission ? (
           <View style={styles.centerContent}>
-            <Text style={styles.statusText}>Laddar kameran...</Text>
+            <Text style={styles.statusText}>{t.scanner.loadingCamera}</Text>
           </View>
         ) : !permission.granted ? (
           <View style={styles.centerContent}>
-            <Text style={styles.permissionTitle}>Kameraåtkomst behövs</Text>
+            <Text style={styles.permissionTitle}>{t.scanner.permissionTitle}</Text>
             <Text style={styles.permissionDescription}>
-              För att scanna streckkoder med mobilen behöver appen tillgång till kameran.
+              {t.scanner.permissionDesc}
             </Text>
             <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-              <Text style={styles.permissionButtonText}>Tillåt kamera</Text>
+              <Text style={styles.permissionButtonText}>{t.scanner.allowCameraBtn}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.closeButton, { marginTop: 15 }]} onPress={onClose}>
-              <Text style={styles.closeButtonText}>Avbryt</Text>
+              <Text style={styles.closeButtonText}>{t.scanner.cancelBtn}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -100,8 +104,8 @@ export default function BarcodeScannerModal({
             <View style={styles.overlay}>
               {/* Header */}
               <View style={styles.header}>
-                <Text style={styles.title}>{title}</Text>
-                <Text style={styles.subtitle}>{subtitle}</Text>
+                <Text style={styles.title}>{modalTitle}</Text>
+                <Text style={styles.subtitle}>{modalSubtitle}</Text>
               </View>
 
               {/* Viewfinder Reticle */}
@@ -122,19 +126,13 @@ export default function BarcodeScannerModal({
                   style={[styles.controlButton, torch && styles.controlButtonActive]}
                   onPress={() => setTorch((prev) => !prev)}
                 >
-                  {torch ? (
-                    <Flashlight size={18} color="#fff" />
-                  ) : (
-                    <FlashlightOff size={18} color="#fff" />
-                  )}
                   <Text style={styles.controlButtonText}>
-                    {torch ? 'Lampa: På' : 'Lampa: Av'}
+                    {torch ? t.scanner.torchOn : t.scanner.torchOff}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                  <X size={18} color="#fff" />
-                  <Text style={styles.closeButtonText}>Stäng</Text>
+                  <Text style={styles.closeButtonText}>{t.scanner.closeBtn}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -279,9 +277,6 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   controlButtonActive: {
     backgroundColor: '#f37f06',
@@ -299,9 +294,6 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
   },
   closeButtonText: {
     color: '#fff',
