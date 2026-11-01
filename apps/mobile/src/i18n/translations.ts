@@ -1,7 +1,15 @@
 export type LanguageCode = 'sv' | 'en' | 'de' | 'es';
+export type CurrencyCode = 'SEK' | 'GBP' | 'USD' | 'EUR';
 
 export interface LanguageOption {
   code: LanguageCode;
+  label: string;
+  flag: string;
+}
+
+export interface CurrencyOption {
+  code: CurrencyCode;
+  symbol: string;
   label: string;
   flag: string;
 }
@@ -11,6 +19,13 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { code: 'en', label: 'English', flag: '🇬🇧' },
   { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
   { code: 'es', label: 'Español', flag: '🇪🇸' },
+];
+
+export const CURRENCY_OPTIONS: CurrencyOption[] = [
+  { code: 'SEK', symbol: 'kr', label: 'SEK (kr)', flag: '🇸🇪' },
+  { code: 'GBP', symbol: '£', label: 'GBP (£)', flag: '🇬🇧' },
+  { code: 'USD', symbol: '$', label: 'USD ($)', flag: '🇺🇸' },
+  { code: 'EUR', symbol: '€', label: 'EUR (€)', flag: '🇪🇺' },
 ];
 
 export interface Translations {
@@ -32,6 +47,8 @@ export interface Translations {
     systemDesc: string;
     languageTitle: string;
     languageHelper: string;
+    currencyTitle: string;
+    currencyHelper: string;
     accountTitle: string;
     accountHelper: string;
     logoutBtn: string;
@@ -262,6 +279,8 @@ export const translations: Record<LanguageCode, Translations> = {
       systemDesc: 'Följer enhetens inställning',
       languageTitle: 'Språk',
       languageHelper: 'Välj vilket språk som ska användas i appen och i standardmallar för SMS.',
+      currencyTitle: 'Valuta',
+      currencyHelper: 'Välj vilken valuta som ska visas för priser, köpesummor och poänggränser.',
       accountTitle: 'Konto',
       accountHelper: 'Avsluta din nuvarande session eller byt butikskonto.',
       logoutBtn: 'Logga ut',
@@ -507,6 +526,8 @@ export const translations: Record<LanguageCode, Translations> = {
       systemDesc: 'Follows device setting',
       languageTitle: 'Language',
       languageHelper: 'Select the language used across the app and for default SMS templates.',
+      currencyTitle: 'Currency',
+      currencyHelper: 'Choose the currency displayed for prices, purchase amounts, and point thresholds.',
       accountTitle: 'Account',
       accountHelper: 'Sign out of your current session or switch store account.',
       logoutBtn: 'Log out',
@@ -752,6 +773,8 @@ export const translations: Record<LanguageCode, Translations> = {
       systemDesc: 'Folgt der Geräteeinstellung',
       languageTitle: 'Sprache',
       languageHelper: 'Wählen Sie die Sprache für die App und die Standard-SMS-Vorlagen.',
+      currencyTitle: 'Währung',
+      currencyHelper: 'Wählen Sie die Währung für Preise, Einkaufsbeträge und Punkteschwellen.',
       accountTitle: 'Konto',
       accountHelper: 'Beenden Sie Ihre aktuelle Sitzung oder wechseln Sie das Geschäftskonto.',
       logoutBtn: 'Abmelden',
@@ -998,6 +1021,9 @@ export const translations: Record<LanguageCode, Translations> = {
       languageTitle: 'Idioma',
       languageHelper:
         'Selecciona el idioma que se usará en la aplicación y en las plantillas predeterminadas de SMS.',
+      currencyTitle: 'Moneda',
+      currencyHelper:
+        'Elige la moneda que se mostrará para los precios, importes de compra y límites de puntos.',
       accountTitle: 'Cuenta',
       accountHelper: 'Cierra tu sesión actual o cambia de cuenta de tienda.',
       logoutBtn: 'Cerrar sesión',

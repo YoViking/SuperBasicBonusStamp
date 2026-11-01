@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useTheme, ThemeColors, ThemeMode } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { LANGUAGE_OPTIONS } from '../i18n/translations';
+import { LANGUAGE_OPTIONS, CURRENCY_OPTIONS } from '../i18n/translations';
 
 interface AppSettingsScreenProps {
   onLogout: () => Promise<void>;
@@ -17,7 +17,7 @@ interface AppSettingsScreenProps {
 
 export default function AppSettingsScreen({ onLogout }: AppSettingsScreenProps) {
   const { colors, themeMode, setThemeMode } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage, currency, setCurrency, t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const themeOptions: { mode: ThemeMode; label: string; desc: string; emoji: string }[] = [
@@ -103,6 +103,32 @@ export default function AppSettingsScreen({ onLogout }: AppSettingsScreenProps) 
                 key={opt.code}
                 style={[styles.langCard, active && styles.modeCardActive]}
                 onPress={() => setLanguage(opt.code)}
+              >
+                <Text style={styles.modeEmoji}>{opt.flag}</Text>
+                <Text
+                  style={[styles.modeTitle, active && styles.modeTitleActive]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* VALUTA */}
+      <View style={styles.card}>
+        <Text style={styles.sectionHeader}>{t.appSettings.currencyTitle}</Text>
+        <Text style={styles.helperText}>{t.appSettings.currencyHelper}</Text>
+
+        <View style={styles.gridRow}>
+          {CURRENCY_OPTIONS.map((opt) => {
+            const active = currency === opt.code;
+            return (
+              <TouchableOpacity
+                key={opt.code}
+                style={[styles.langCard, active && styles.modeCardActive]}
+                onPress={() => setCurrency(opt.code)}
               >
                 <Text style={styles.modeEmoji}>{opt.flag}</Text>
                 <Text

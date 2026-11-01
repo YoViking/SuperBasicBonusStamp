@@ -33,10 +33,8 @@ import { useLanguage } from '../i18n/LanguageContext';
 export default function PosScreen() {
   const isFocused = useIsFocused();
   const { colors } = useTheme();
-  const { language, t } = useLanguage();
+  const { language, currencySymbol: currency, t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
-
-  const currency = 'kr';
 
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [phone, setPhone] = useState('');

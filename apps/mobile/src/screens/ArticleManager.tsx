@@ -24,10 +24,8 @@ import { useLanguage } from '../i18n/LanguageContext';
 export default function ArticleManager() {
   const isFocused = useIsFocused();
   const { colors } = useTheme();
-  const { t } = useLanguage();
+  const { currencySymbol: currency, t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
-
-  const currency = 'kr';
 
   const [sku, setSku] = useState('');
   const [name, setName] = useState('');

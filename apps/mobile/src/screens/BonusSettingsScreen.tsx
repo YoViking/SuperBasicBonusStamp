@@ -28,10 +28,8 @@ import { useLanguage } from '../i18n/LanguageContext';
 export default function BonusSettingsScreen() {
   const isFocused = useIsFocused();
   const { colors } = useTheme();
-  const { language, t } = useLanguage();
+  const { language, currencySymbol: currency, t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
-
-  const currency = 'kr';
 
   const [storeName, setStoreName] = useState(t.pos.defaultStoreName);
   const [bonusType, setBonusType] = useState<BonusType>('STAMPS');

@@ -151,39 +151,42 @@ export function formatSmsMessage(template: string, params: SmsFormatParams): str
     .replace(/\{laden\}/gi, storeNameStr)
     .replace(/\{tienda\}/gi, storeNameStr)
     .replace(
-      /\{(saldo|balance|guthaben)\}(\s*(?:stämplar|stämpel|stamps|stamp|stempel|sellos|sello|kr|poäng|points|punkte|puntos))?/gi,
+      /\{(saldo|balance|guthaben)\}(\s*(?:stämplar|stämpel|stamps|stamp|stempel|sellos|sello|kr|£|\$|€|sek|gbp|usd|eur|poäng|points|punkte|puntos))?/gi,
       saldoStr
     );
 
   // 2. Taggar för köp/stämplar och bonus (sv, en, de, es)
   formatted = formatted
-    .replace(/\{(köpesumma|belopp|summa|betrag|importe)\}(\s*kr)?/gi, purchaseAmountStr)
+    .replace(
+      /\{(köpesumma|belopp|summa|betrag|importe)\}(\s*(?:kr|£|\$|€|sek|gbp|usd|eur))?/gi,
+      purchaseAmountStr
+    )
     .replace(
       /\{(stämplar|antal|stamps|stempel|sellos)\}(\s*(?:stämplar|stämpel|st|stamps|stamp|stempel|sellos|sello))?/gi,
       stampsAddedStr
     )
     .replace(
-      /\{(kvar_till_bonus|kvar|remaining|rest|restante)\}(\s*(?:stämplar|stämpel|stamps|stamp|stempel|sellos|sello|kr|poäng|points|punkte|puntos))?/gi,
+      /\{(kvar_till_bonus|kvar|remaining|rest|restante)\}(\s*(?:stämplar|stämpel|stamps|stamp|stempel|sellos|sello|kr|£|\$|€|sek|gbp|usd|eur|poäng|points|punkte|puntos))?/gi,
       remainingWithUnitStr
     )
     .replace(
-      /\{(bonusbelopp|belöning|bonus|reward|prämie|recompensa)\}(\s*kr(?:\s*rabatt)?)?/gi,
+      /\{(bonusbelopp|belöning|bonus|reward|prämie|recompensa)\}(\s*(?:kr|£|\$|€|sek|gbp|usd|eur)(?:\s*(?:rabatt|discount|descuento))?)?/gi,
       rewardStr
     )
     .replace(
-      /\{(bonusgräns|threshold|schwelle|límite)\}(\s*(?:stämplar|stämpel|stamps|stamp|stempel|sellos|sello|kr|poäng|points|punkte|puntos))?/gi,
+      /\{(bonusgräns|threshold|schwelle|límite)\}(\s*(?:stämplar|stämpel|stamps|stamp|stempel|sellos|sello|kr|£|\$|€|sek|gbp|usd|eur|poäng|points|punkte|puntos))?/gi,
       thresholdWithUnitStr
     );
 
   // 3. {amount}
   formatted = formatted.replace(
-    /\{amount\}(\s*kr)?/gi,
+    /\{amount\}(\s*(?:kr|£|\$|€|sek|gbp|usd|eur))?/gi,
     isPoints ? purchaseAmountStr : stampsAddedStr
   );
 
   // 4. Smart ersättning för 'X kr' eller '[X]'
   let xIndex = 0;
-  formatted = formatted.replace(/\bX(?=\s*kr\b)/gi, () => {
+  formatted = formatted.replace(/\bX(?=\s*(?:kr|£|\$|€)\b)/gi, () => {
     xIndex++;
     if (xIndex === 1) return amountStr;
     if (xIndex === 2) return remainingStr;
