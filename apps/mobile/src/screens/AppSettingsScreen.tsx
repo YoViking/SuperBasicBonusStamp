@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { Sun, Moon, Smartphone, LogOut } from 'lucide-react-native';
 import { useTheme, ThemeColors, ThemeMode } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { LANGUAGE_OPTIONS, CURRENCY_OPTIONS } from '../i18n/translations';
@@ -20,24 +21,29 @@ export default function AppSettingsScreen({ onLogout }: AppSettingsScreenProps) 
   const { language, setLanguage, currency, setCurrency, t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const themeOptions: { mode: ThemeMode; label: string; desc: string; emoji: string }[] = [
+  const themeOptions: {
+    mode: ThemeMode;
+    label: string;
+    desc: string;
+    Icon: typeof Sun;
+  }[] = [
     {
       mode: 'light',
       label: t.appSettings.lightLabel,
       desc: t.appSettings.lightDesc,
-      emoji: '☀️',
+      Icon: Sun,
     },
     {
       mode: 'dark',
       label: t.appSettings.darkLabel,
       desc: t.appSettings.darkDesc,
-      emoji: '🌙',
+      Icon: Moon,
     },
     {
       mode: 'system',
       label: t.appSettings.systemLabel,
       desc: t.appSettings.systemDesc,
-      emoji: '📱',
+      Icon: Smartphone,
     },
   ];
 
@@ -71,13 +77,21 @@ export default function AppSettingsScreen({ onLogout }: AppSettingsScreenProps) 
         <View style={styles.themeRow}>
           {themeOptions.map((opt) => {
             const active = themeMode === opt.mode;
+            const IconComponent = opt.Icon;
             return (
               <TouchableOpacity
                 key={opt.mode}
                 style={[styles.modeCard, active && styles.modeCardActive]}
                 onPress={() => setThemeMode(opt.mode)}
               >
-                <Text style={styles.modeEmoji}>{opt.emoji}</Text>
+                <View style={styles.modeIconWrapper}>
+                  <IconComponent
+                    size={24}
+                    color={
+                      active ? colors.primaryStrongText : colors.textSecondary
+                    }
+                  />
+                </View>
                 <Text
                   style={[styles.modeTitle, active && styles.modeTitleActive]}
                 >
@@ -148,6 +162,7 @@ export default function AppSettingsScreen({ onLogout }: AppSettingsScreenProps) 
         <Text style={styles.helperText}>{t.appSettings.accountHelper}</Text>
 
         <TouchableOpacity style={styles.logoutButton} onPress={confirmLogout}>
+          <LogOut size={18} color={colors.dangerText} />
           <Text style={styles.logoutButtonText}>{t.appSettings.logoutBtn}</Text>
         </TouchableOpacity>
       </View>
@@ -219,6 +234,9 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.primary,
       backgroundColor: colors.primarySoft,
     },
+    modeIconWrapper: {
+      marginBottom: 6,
+    },
     modeEmoji: {
       fontSize: 24,
       marginBottom: 6,
@@ -244,7 +262,10 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.danger,
       paddingVertical: 14,
       borderRadius: 10,
+      flexDirection: 'row',
+      justifyContent: 'center',
       alignItems: 'center',
+      gap: 8,
     },
     logoutButtonText: {
       color: colors.dangerText,

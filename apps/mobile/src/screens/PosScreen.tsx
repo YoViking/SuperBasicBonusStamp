@@ -13,6 +13,18 @@ import {
   ScrollView,
 } from 'react-native';
 import {
+  Star,
+  Sparkles,
+  UserCheck,
+  Gift,
+  Check,
+  Minus,
+  Plus,
+  ScanBarcode,
+  Flame,
+  X,
+} from 'lucide-react-native';
+import {
   Article,
   StoreSettings,
   getStoreSettings,
@@ -352,17 +364,11 @@ export default function PosScreen() {
 
   return (
     <View style={styles.container}>
-      {/* BUTIKS-BADGE HÖGST UPP */}
+      {/* BUTIKSNAMN HÖGST UPP */}
       <View style={styles.storeHeaderRow}>
         <Text style={styles.storeNameText}>
           {storeSettings?.storeName || t.pos.defaultStoreName}
         </Text>
-        <View style={styles.modePill}>
-          <Text style={styles.modePillText}>
-            {bonusType === 'STAMPS' ? t.pos.stampsBadge : t.pos.pointsBadge} •{' '}
-            {posMode === 'QUICK' ? t.pos.quickBadge : t.pos.articlesBadge}
-          </Text>
-        </View>
       </View>
 
       {/* SÖK KUND PÅ TELEFONNUMMER */}
@@ -372,6 +378,8 @@ export default function PosScreen() {
           placeholder={t.pos.phonePlaceholder}
           placeholderTextColor={colors.placeholder}
           keyboardType="phone-pad"
+          multiline={false}
+          numberOfLines={1}
           value={phone}
           onChangeText={(text) => {
             setPhone(text);
@@ -387,9 +395,16 @@ export default function PosScreen() {
       {customerSearched && (
         <View style={styles.customerCard}>
           <View style={styles.customerHeaderRow}>
-            <Text style={styles.customerBadgeText}>
-              {isNewCustomer ? t.pos.newCustomerBadge : t.pos.existingCustomerBadge}
-            </Text>
+            <View style={styles.customerBadgeRow}>
+              {isNewCustomer ? (
+                <Sparkles size={15} color={colors.primaryStrongText} />
+              ) : (
+                <UserCheck size={15} color={colors.primaryStrongText} />
+              )}
+              <Text style={styles.customerBadgeText}>
+                {isNewCustomer ? t.pos.newCustomerBadge : t.pos.existingCustomerBadge}
+              </Text>
+            </View>
             {customerId && (
               <TouchableOpacity onPress={handleDeleteCustomer}>
                 <Text style={styles.gdprDeleteText}>{t.pos.gdprDeleteBtn}</Text>
@@ -420,14 +435,15 @@ export default function PosScreen() {
                           isFilled && styles.stampCircleFilled,
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.stampCircleText,
-                            isFilled && styles.stampCircleTextFilled,
-                          ]}
-                        >
-                          {isFilled ? '⭐' : idx + 1}
-                        </Text>
+                        {isFilled ? (
+                          <Star
+                            size={16}
+                            color={colors.warningText}
+                            fill={colors.warningText}
+                          />
+                        ) : (
+                          <Text style={styles.stampCircleText}>{idx + 1}</Text>
+                        )}
                       </View>
                     );
                   })}
@@ -462,9 +478,12 @@ export default function PosScreen() {
           {/* BONUS ATT LÖSA IN */}
           {availableBonuses > 0 && (
             <View style={styles.bonusBox}>
-              <Text style={styles.bonusBoxTitle}>
-                {t.pos.bonusAvailableTitle(availableBonuses)}
-              </Text>
+              <View style={styles.bonusBoxTitleRow}>
+                <Gift size={16} color={colors.warningText} />
+                <Text style={styles.bonusBoxTitle}>
+                  {t.pos.bonusAvailableTitle(availableBonuses)}
+                </Text>
+              </View>
 
               {availableBonuses - appliedBonusesCount > 0 && (
                 <TouchableOpacity
@@ -483,9 +502,12 @@ export default function PosScreen() {
 
               {appliedBonusesCount > 0 && (
                 <View style={styles.appliedBonusRow}>
-                  <Text style={styles.appliedBonusText}>
-                    {t.pos.appliedBonusText(appliedBonusesCount)}
-                  </Text>
+                  <View style={styles.appliedBonusTextRow}>
+                    <Check size={16} color={colors.success} />
+                    <Text style={styles.appliedBonusText}>
+                      {t.pos.appliedBonusText(appliedBonusesCount)}
+                    </Text>
+                  </View>
                   <TouchableOpacity onPress={() => setAppliedBonusesCount(0)}>
                     <Text style={styles.undoBonusText}>{t.pos.undoBtn}</Text>
                   </TouchableOpacity>
@@ -511,7 +533,7 @@ export default function PosScreen() {
                     style={styles.stepperBtn}
                     onPress={() => setQuickStamps((prev) => Math.max(0, prev - 1))}
                   >
-                    <Text style={styles.stepperBtnText}>−</Text>
+                    <Minus size={28} color={colors.primaryStrongText} />
                   </TouchableOpacity>
 
                   <View style={styles.stampCountDisplay}>
@@ -525,7 +547,7 @@ export default function PosScreen() {
                     style={styles.stepperBtn}
                     onPress={() => setQuickStamps((prev) => prev + 1)}
                   >
-                    <Text style={styles.stepperBtnText}>＋</Text>
+                    <Plus size={28} color={colors.primaryStrongText} />
                   </TouchableOpacity>
                 </View>
 
@@ -599,6 +621,7 @@ export default function PosScreen() {
               style={styles.scanButton}
               onPress={() => setIsScannerOpen(true)}
             >
+              <ScanBarcode size={18} color={colors.primaryText} />
               <Text style={styles.scanButtonText}>{t.pos.scanBarcodeBtn}</Text>
             </TouchableOpacity>
 
@@ -638,6 +661,14 @@ export default function PosScreen() {
                     ]}
                     onPress={() => setSelectedCategory('TOP')}
                   >
+                    <Flame
+                      size={14}
+                      color={
+                        selectedCategory === 'TOP'
+                          ? '#ffffff'
+                          : colors.textSecondary
+                      }
+                    />
                     <Text
                       style={[
                         styles.catTabText,
@@ -733,20 +764,20 @@ export default function PosScreen() {
                       style={styles.cartQtyBtn}
                       onPress={() => handleRemoveOne(article.id)}
                     >
-                      <Text style={styles.cartQtyBtnText}>−</Text>
+                      <Minus size={14} color={colors.primaryStrongText} />
                     </TouchableOpacity>
                     <Text style={styles.cartQtyNumber}>{quantity}</Text>
                     <TouchableOpacity
                       style={styles.cartQtyBtn}
                       onPress={() => setCart([...cart, article])}
                     >
-                      <Text style={styles.cartQtyBtnText}>+</Text>
+                      <Plus size={14} color={colors.primaryStrongText} />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.cartDeleteBtn}
                       onPress={() => handleRemoveAllOfArticle(article.id)}
                     >
-                      <Text style={styles.cartDeleteBtnText}>✕</Text>
+                      <X size={16} color={colors.dangerText} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -806,17 +837,6 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '800',
       color: colors.text,
     },
-    modePill: {
-      backgroundColor: colors.modePillBg,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 12,
-    },
-    modePillText: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: colors.primaryStrongText,
-    },
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -825,21 +845,25 @@ const createStyles = (colors: ThemeColors) =>
     },
     phoneInput: {
       flex: 1,
-      fontSize: 20,
+      minWidth: 0,
+      height: 48,
+      fontSize: 16,
+      lineHeight: 22,
       borderWidth: 1,
       borderColor: colors.borderInput,
       borderRadius: 10,
       paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingVertical: 10,
       backgroundColor: colors.surface,
       color: colors.text,
     },
     searchButton: {
+      height: 48,
       backgroundColor: colors.primary,
       paddingHorizontal: 18,
-      paddingVertical: 14,
       borderRadius: 10,
       justifyContent: 'center',
+      alignItems: 'center',
     },
     searchButtonText: {
       color: '#fff',
@@ -859,6 +883,11 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 8,
+    },
+    customerBadgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
     },
     customerBadgeText: {
       fontSize: 14,
@@ -904,10 +933,6 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '700',
       color: colors.stampCircleText,
     },
-    stampCircleTextFilled: {
-      fontSize: 16,
-      color: colors.warningText,
-    },
     progressBarBg: {
       height: 12,
       backgroundColor: colors.border,
@@ -925,11 +950,16 @@ const createStyles = (colors: ThemeColors) =>
       borderTopWidth: 1,
       borderTopColor: colors.borderSubtle,
     },
+    bonusBoxTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 8,
+    },
     bonusBoxTitle: {
       fontSize: 14,
       fontWeight: '700',
       color: colors.warningText,
-      marginBottom: 8,
     },
     redeemButton: {
       backgroundColor: colors.warning,
@@ -948,6 +978,11 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'space-between',
       alignItems: 'center',
       marginTop: 8,
+    },
+    appliedBonusTextRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
     },
     appliedBonusText: {
       color: colors.success,
@@ -993,11 +1028,6 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
-    },
-    stepperBtnText: {
-      fontSize: 30,
-      fontWeight: '700',
-      color: colors.primaryStrongText,
     },
     stampCountDisplay: {
       alignItems: 'center',
@@ -1060,7 +1090,10 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: 10,
       paddingVertical: 11,
       paddingHorizontal: 16,
+      flexDirection: 'row',
+      justifyContent: 'center',
       alignItems: 'center',
+      gap: 8,
       marginBottom: 10,
     },
     scanButtonText: {
@@ -1076,6 +1109,9 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.borderInput,
       marginRight: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
     },
     catTabActive: {
       backgroundColor: colors.primary,
@@ -1161,7 +1197,6 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.primarySoftBorder,
     },
-    cartQtyBtnText: { fontSize: 15, fontWeight: '700', color: colors.primaryStrongText },
     cartQtyNumber: {
       fontSize: 14,
       fontWeight: '700',
@@ -1173,7 +1208,6 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 6,
       paddingVertical: 2,
     },
-    cartDeleteBtnText: { fontSize: 14, color: colors.dangerText, fontWeight: '700' },
     totalRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',

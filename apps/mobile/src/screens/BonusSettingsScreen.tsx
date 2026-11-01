@@ -12,14 +12,23 @@ import {
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import {
+  Zap,
+  ShoppingCart,
+  Star,
+  Coins,
+  Smartphone,
+  PartyPopper,
+  Plus,
+} from 'lucide-react-native';
+import {
   getStoreSettings,
   saveStoreSettings,
   BonusType,
   PosMode,
 } from '../db/operations';
 import {
-  getAllDefaultPurchaseTemplates,
-  getAllDefaultBonusTemplates,
+  normalizePurchaseTemplate,
+  normalizeBonusTemplate,
   formatSmsMessage,
 } from '../services/smsFormatter';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
@@ -39,6 +48,58 @@ export default function BonusSettingsScreen() {
   const [rewardDescription, setRewardDescription] = useState(t.pos.defaultRewardDesc);
   const [purchaseMessage, setPurchaseMessage] = useState(t.sms.defaultStampPurchase);
   const [bonusMessage, setBonusMessage] = useState(t.sms.defaultStampBonus);
+  const [purchaseSelection, setPurchaseSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+  const [bonusSelection, setBonusSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+
+  const smsQuickTags = useMemo(
+    () => [
+      { label: t.sms.tagStoreLabel, tag: t.sms.tagStore },
+      { label: t.sms.tagBalanceLabel, tag: t.sms.tagBalance },
+      { label: t.sms.tagRemainingLabel, tag: t.sms.tagRemaining },
+      { label: t.sms.tagBonusLabel, tag: t.sms.tagBonus },
+      {
+        label: bonusType === 'STAMPS' ? t.sms.tagStampsLabel : t.sms.tagAmountLabel,
+        tag: bonusType === 'STAMPS' ? t.sms.tagStamps : t.sms.tagAmount,
+      },
+    ],
+    [bonusType, t]
+  );
+
+  const insertTag = (
+    tag: string,
+    currentText: string,
+    setText: (val: string) => void,
+    selection: { start: number; end: number } | null,
+    setSelection: (sel: { start: number; end: number } | null) => void
+  ) => {
+    if (selection && selection.start <= currentText.length) {
+      const before = currentText.slice(0, selection.start);
+      const after = currentText.slice(selection.end);
+      const needsSpaceBefore =
+        before.length > 0 && !/\s$/.test(before) && !/[([{]$/.test(before);
+      const needsSpaceAfter =
+        after.length > 0 && !/^\s/.test(after) && !/^[.,!?)\]}]/.test(after);
+      const inserted = `${needsSpaceBefore ? ' ' : ''}${tag}${
+        needsSpaceAfter ? ' ' : ''
+      }`;
+      const nextText = `${before}${inserted}${after}`;
+      const nextCursor = before.length + inserted.length;
+      setText(nextText);
+      setSelection({ start: nextCursor, end: nextCursor });
+    } else {
+      const needsSpace =
+        currentText.length > 0 && !/\s$/.test(currentText);
+      const nextText = `${currentText}${needsSpace ? ' ' : ''}${tag}`;
+      setText(nextText);
+      setSelection({ start: nextText.length, end: nextText.length });
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -49,29 +110,12 @@ export default function BonusSettingsScreen() {
       setThreshold(data.threshold.toString());
       setRewardAmount(data.rewardAmount.toString());
       setRewardDescription(data.rewardDescription || t.pos.defaultRewardDesc);
-
-      const defaultPurchases = getAllDefaultPurchaseTemplates();
-      const defaultBonuses = getAllDefaultBonusTemplates();
-
-      if (defaultPurchases.has(data.purchaseMessage?.trim())) {
-        setPurchaseMessage(
-          data.bonusType === 'STAMPS'
-            ? t.sms.defaultStampPurchase
-            : t.sms.defaultPointsPurchase
-        );
-      } else {
-        setPurchaseMessage(data.purchaseMessage);
-      }
-
-      if (defaultBonuses.has(data.bonusMessage?.trim())) {
-        setBonusMessage(
-          data.bonusType === 'STAMPS'
-            ? t.sms.defaultStampBonus
-            : t.sms.defaultPointsBonus
-        );
-      } else {
-        setBonusMessage(data.bonusMessage);
-      }
+      setPurchaseMessage(
+        normalizePurchaseTemplate(data.purchaseMessage, data.bonusType, language)
+      );
+      setBonusMessage(
+        normalizeBonusTemplate(data.bonusMessage, data.bonusType, language)
+      );
     } catch (err) {
       console.error('Kunde inte läsa butiksinställningar', err);
     }
@@ -87,28 +131,19 @@ export default function BonusSettingsScreen() {
     if (nextType === bonusType) return;
     setBonusType(nextType);
 
-    const defaultPurchases = getAllDefaultPurchaseTemplates();
-    const defaultBonuses = getAllDefaultBonusTemplates();
-
     if (nextType === 'STAMPS') {
       if (threshold === '1000') setThreshold('10');
       if (rewardAmount === '100') setRewardAmount('1');
-      if (defaultPurchases.has(purchaseMessage.trim())) {
-        setPurchaseMessage(t.sms.defaultStampPurchase);
-      }
-      if (defaultBonuses.has(bonusMessage.trim())) {
-        setBonusMessage(t.sms.defaultStampBonus);
-      }
     } else {
       if (threshold === '10') setThreshold('1000');
       if (rewardAmount === '1') setRewardAmount('100');
-      if (defaultPurchases.has(purchaseMessage.trim())) {
-        setPurchaseMessage(t.sms.defaultPointsPurchase);
-      }
-      if (defaultBonuses.has(bonusMessage.trim())) {
-        setBonusMessage(t.sms.defaultPointsBonus);
-      }
     }
+    setPurchaseMessage((prev) =>
+      normalizePurchaseTemplate(prev, nextType, language)
+    );
+    setBonusMessage((prev) =>
+      normalizeBonusTemplate(prev, nextType, language)
+    );
   };
 
   const handleSave = async () => {
@@ -205,7 +240,16 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => setPosMode('QUICK')}
             >
-              <Text style={styles.modeEmoji}>⚡</Text>
+              <View style={styles.modeIconWrapper}>
+                <Zap
+                  size={26}
+                  color={
+                    posMode === 'QUICK'
+                      ? colors.primaryStrongText
+                      : colors.textSecondary
+                  }
+                />
+              </View>
               <Text
                 style={[
                   styles.modeTitle,
@@ -224,7 +268,16 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => setPosMode('ARTICLES')}
             >
-              <Text style={styles.modeEmoji}>🛒</Text>
+              <View style={styles.modeIconWrapper}>
+                <ShoppingCart
+                  size={26}
+                  color={
+                    posMode === 'ARTICLES'
+                      ? colors.primaryStrongText
+                      : colors.textSecondary
+                  }
+                />
+              </View>
               <Text
                 style={[
                   styles.modeTitle,
@@ -251,7 +304,16 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => handleSelectBonusType('STAMPS')}
             >
-              <Text style={styles.modeEmoji}>⭐</Text>
+              <View style={styles.modeIconWrapper}>
+                <Star
+                  size={26}
+                  color={
+                    bonusType === 'STAMPS'
+                      ? colors.primaryStrongText
+                      : colors.textSecondary
+                  }
+                />
+              </View>
               <Text
                 style={[
                   styles.modeTitle,
@@ -270,7 +332,16 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => handleSelectBonusType('POINTS')}
             >
-              <Text style={styles.modeEmoji}>💰</Text>
+              <View style={styles.modeIconWrapper}>
+                <Coins
+                  size={26}
+                  color={
+                    bonusType === 'POINTS'
+                      ? colors.primaryStrongText
+                      : colors.textSecondary
+                  }
+                />
+              </View>
               <Text
                 style={[
                   styles.modeTitle,
@@ -356,23 +427,36 @@ export default function BonusSettingsScreen() {
         {/* 3. SMS-MALL VID VANLIGT KÖP / STÄMPEL */}
         <View style={styles.card}>
           <Text style={styles.sectionHeader}>{t.bonusSettings.section3Title}</Text>
-          <Text style={styles.helperText}>
-            {t.bonusSettings.availableTagsLabel}{' '}
-            <Text style={styles.boldText}>{t.sms.tagStore}</Text>,{' '}
-            <Text style={styles.boldText}>{t.sms.tagBalance}</Text>,{' '}
-            <Text style={styles.boldText}>{t.sms.tagRemaining}</Text>,{' '}
-            <Text style={styles.boldText}>{t.sms.tagBonus}</Text>{' '}
-            {t.bonusSettings.andWord}{' '}
-            <Text style={styles.boldText}>
-              {bonusType === 'STAMPS' ? t.sms.tagStamps : t.sms.tagAmount}
-            </Text>
-            .
-          </Text>
+          <Text style={styles.helperText}>{t.bonusSettings.section3Helper}</Text>
+
+          <View style={styles.tagChipsRow}>
+            {smsQuickTags.map((item) => (
+              <TouchableOpacity
+                key={item.tag}
+                style={styles.tagChip}
+                onPress={() =>
+                  insertTag(
+                    item.tag,
+                    purchaseMessage,
+                    setPurchaseMessage,
+                    purchaseSelection,
+                    setPurchaseSelection
+                  )
+                }
+              >
+                <Plus size={13} color={colors.primaryStrongText} />
+                <Text style={styles.tagChipText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           <TextInput
             style={styles.textArea}
             value={purchaseMessage}
             onChangeText={setPurchaseMessage}
+            onSelectionChange={(e) =>
+              setPurchaseSelection(e.nativeEvent.selection)
+            }
             multiline
             numberOfLines={4}
             placeholder={t.bonusSettings.purchaseTemplatePlaceholder}
@@ -395,9 +479,10 @@ export default function BonusSettingsScreen() {
           </TouchableOpacity>
 
           <View style={styles.previewBox}>
-            <Text style={styles.previewTitle}>
-              📱 {t.bonusSettings.previewLabel}
-            </Text>
+            <View style={styles.previewTitleRow}>
+              <Smartphone size={15} color={colors.primaryStrongText} />
+              <Text style={styles.previewTitle}>{t.bonusSettings.previewLabel}</Text>
+            </View>
             <Text style={styles.previewText}>{previewPurchase}</Text>
           </View>
         </View>
@@ -407,10 +492,34 @@ export default function BonusSettingsScreen() {
           <Text style={styles.sectionHeader}>{t.bonusSettings.section4Title}</Text>
           <Text style={styles.helperText}>{t.bonusSettings.section4Helper}</Text>
 
+          <View style={styles.tagChipsRow}>
+            {smsQuickTags.map((item) => (
+              <TouchableOpacity
+                key={item.tag}
+                style={styles.tagChip}
+                onPress={() =>
+                  insertTag(
+                    item.tag,
+                    bonusMessage,
+                    setBonusMessage,
+                    bonusSelection,
+                    setBonusSelection
+                  )
+                }
+              >
+                <Plus size={13} color={colors.primaryStrongText} />
+                <Text style={styles.tagChipText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <TextInput
             style={styles.textArea}
             value={bonusMessage}
             onChangeText={setBonusMessage}
+            onSelectionChange={(e) =>
+              setBonusSelection(e.nativeEvent.selection)
+            }
             multiline
             numberOfLines={4}
             placeholder={t.bonusSettings.bonusTemplatePlaceholder}
@@ -433,9 +542,10 @@ export default function BonusSettingsScreen() {
           </TouchableOpacity>
 
           <View style={styles.previewBox}>
-            <Text style={styles.previewTitle}>
-              🎉 {t.bonusSettings.previewLabel}
-            </Text>
+            <View style={styles.previewTitleRow}>
+              <PartyPopper size={15} color={colors.primaryStrongText} />
+              <Text style={styles.previewTitle}>{t.bonusSettings.previewLabel}</Text>
+            </View>
             <Text style={styles.previewText}>{previewBonus}</Text>
           </View>
         </View>
@@ -513,8 +623,7 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.primary,
       backgroundColor: colors.primarySoft,
     },
-    modeEmoji: {
-      fontSize: 26,
+    modeIconWrapper: {
       marginBottom: 6,
     },
     modeTitle: {
@@ -545,6 +654,28 @@ const createStyles = (colors: ThemeColors) =>
       lineHeight: 22,
       color: colors.text,
     },
+    tagChipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 12,
+    },
+    tagChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+      borderRadius: 18,
+      backgroundColor: colors.primarySoft,
+      borderWidth: 1,
+      borderColor: colors.primarySoftBorder,
+    },
+    tagChipText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+    },
     resetButton: {
       alignSelf: 'flex-start',
       marginBottom: 14,
@@ -562,11 +693,16 @@ const createStyles = (colors: ThemeColors) =>
       padding: 14,
       borderRadius: 8,
     },
+    previewTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4,
+    },
     previewTitle: {
       fontSize: 13,
       fontWeight: '700',
       color: colors.primaryStrongText,
-      marginBottom: 4,
     },
     previewText: {
       fontSize: 14,

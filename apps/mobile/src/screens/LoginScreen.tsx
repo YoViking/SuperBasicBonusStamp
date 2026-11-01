@@ -11,6 +11,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { Star, Lightbulb, Rocket } from 'lucide-react-native';
 import { supabase, isSupabaseConfigured } from '../db/supabase';
 import { setDemoModeActive, saveStoreSettings, getStoreSettings } from '../db/operations';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
@@ -113,7 +114,7 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
       >
         <View style={styles.headerBox}>
           <View style={styles.logoBadge}>
-            <Text style={styles.logoEmoji}>⭐</Text>
+            <Star size={34} color="#fff" fill="#fff" />
           </View>
           <Text style={styles.appTitle}>BonusStamp</Text>
           <Text style={styles.appSubtitle}>{t.login.subtitle}</Text>
@@ -189,7 +190,10 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
 
         {!isSupabaseConfigured && (
           <View style={styles.infoBanner}>
-            <Text style={styles.infoTitle}>{t.login.infoBannerTitle}</Text>
+            <View style={styles.infoTitleRow}>
+              <Lightbulb size={16} color={colors.primaryStrongText} />
+              <Text style={styles.infoTitle}>{t.login.infoBannerTitle}</Text>
+            </View>
             <Text style={styles.infoText}>
               {t.login.infoBannerText1}{' '}
               <Text style={styles.codeText}>.env</Text>{' '}
@@ -202,6 +206,7 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
         )}
 
         <TouchableOpacity style={styles.demoButton} onPress={handleStartDemo}>
+          <Rocket size={18} color={colors.textSecondary} />
           <Text style={styles.demoButtonText}>{t.login.demoBtn}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -239,9 +244,6 @@ const createStyles = (colors: ThemeColors) =>
       shadowOpacity: 0.25,
       shadowRadius: 8,
       elevation: 4,
-    },
-    logoEmoji: {
-      fontSize: 34,
     },
     appTitle: {
       fontSize: 30,
@@ -321,11 +323,16 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.primarySoftBorder,
     },
+    infoTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4,
+    },
     infoTitle: {
       fontSize: 14,
       fontWeight: '700',
       color: colors.primaryStrongText,
-      marginBottom: 4,
     },
     infoText: {
       fontSize: 13,
@@ -343,7 +350,10 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1.5,
       borderColor: colors.borderInput,
       backgroundColor: colors.surface,
+      flexDirection: 'row',
+      justifyContent: 'center',
       alignItems: 'center',
+      gap: 8,
     },
     demoButtonText: {
       color: colors.textSecondary,
