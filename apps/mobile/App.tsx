@@ -8,6 +8,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Store, Settings } from 'lucide-react-native';
 import { supabase, isSupabaseConfigured } from './src/db/supabase';
 import { isDemoModeActive, setDemoModeActive } from './src/db/operations';
 import { ThemeProvider, useTheme, ThemeColors } from './src/theme/ThemeContext';
@@ -171,7 +172,6 @@ function AppContent() {
               fontSize: 16,
               fontWeight: '700',
             },
-            tabBarIcon: () => null,
             tabBarStyle: {
               backgroundColor: colors.surface,
               borderTopWidth: 1,
@@ -189,12 +189,14 @@ function AppContent() {
             component={PosScreen}
             options={{
               title: 'Kassa',
+              tabBarIcon: ({ color, size }) => <Store size={size} color={color} />,
             }}
           />
           <Tab.Screen
             name="Admin"
             options={{
               title: 'Inställningar',
+              tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
             }}
           >
             {() => <AdminTabs onLogout={handleLogout} />}

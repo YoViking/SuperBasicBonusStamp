@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Flashlight, FlashlightOff, X } from 'lucide-react-native';
 
 interface BarcodeScannerModalProps {
   visible: boolean;
@@ -121,13 +122,19 @@ export default function BarcodeScannerModal({
                   style={[styles.controlButton, torch && styles.controlButtonActive]}
                   onPress={() => setTorch((prev) => !prev)}
                 >
+                  {torch ? (
+                    <Flashlight size={18} color="#fff" />
+                  ) : (
+                    <FlashlightOff size={18} color="#fff" />
+                  )}
                   <Text style={styles.controlButtonText}>
-                    {torch ? '🔦 Lampa: På' : '💡 Lampa: Av'}
+                    {torch ? 'Lampa: På' : 'Lampa: Av'}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                  <Text style={styles.closeButtonText}>✕ Stäng</Text>
+                  <X size={18} color="#fff" />
+                  <Text style={styles.closeButtonText}>Stäng</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -272,6 +279,9 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   controlButtonActive: {
     backgroundColor: '#f37f06',
@@ -289,6 +299,9 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   closeButtonText: {
     color: '#fff',

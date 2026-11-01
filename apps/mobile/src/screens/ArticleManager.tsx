@@ -11,6 +11,14 @@ import {
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import {
+  Search,
+  X,
+  Plus,
+  ScanBarcode,
+  Pencil,
+  Trash2,
+} from 'lucide-react-native';
+import {
   getArticles,
   addArticle,
   updateArticle,
@@ -151,9 +159,10 @@ export default function ArticleManager() {
       {/* SÖKFÄLT OCH KNAPP FÖR NY ARTIKEL */}
       <View style={styles.topActionsRow}>
         <View style={styles.searchContainer}>
+          <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="🔍 Sök artikel (namn, kategori, streckkod)..."
+            placeholder="Sök artikel (namn, kategori, streckkod)..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor={colors.placeholder}
@@ -164,7 +173,7 @@ export default function ArticleManager() {
               onPress={() => setSearchQuery('')}
               style={styles.clearSearchBtn}
             >
-              <Text style={styles.clearSearchBtnText}>✕</Text>
+              <X size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -182,12 +191,15 @@ export default function ArticleManager() {
             }
           }}
         >
+          {!editingArticleId && !isFormVisible && (
+            <Plus size={18} color="#fff" />
+          )}
           <Text style={styles.toggleFormButtonText}>
             {editingArticleId
               ? 'Avbryt'
               : isFormVisible
               ? 'Dölj formulär'
-              : '＋ Ny artikel'}
+              : 'Ny artikel'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -268,7 +280,8 @@ export default function ArticleManager() {
               style={styles.skuScanBtn}
               onPress={() => setIsScannerOpen(true)}
             >
-              <Text style={styles.skuScanBtnText}>📷 Scanna</Text>
+              <ScanBarcode size={18} color={colors.primaryStrongText} />
+              <Text style={styles.skuScanBtnText}>Scanna</Text>
             </TouchableOpacity>
           </View>
 
@@ -302,7 +315,7 @@ export default function ArticleManager() {
             <Text style={styles.emptyText}>
               {searchQuery
                 ? 'Inga artiklar matchade din sökning.'
-                : 'Inga artiklar sparade än. Klicka på "＋ Ny artikel" om du vill använda Artikelläge i kassan.'}
+                : 'Inga artiklar sparade än. Klicka på "+ Ny artikel" om du vill använda Artikelläge i kassan.'}
             </Text>
           </View>
         }
@@ -322,12 +335,14 @@ export default function ArticleManager() {
                 style={styles.editButton}
                 onPress={() => handleEdit(item)}
               >
+                <Pencil size={14} color={colors.warningText} />
                 <Text style={styles.editButtonText}>Redigera</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => handleDelete(item)}
               >
+                <Trash2 size={14} color={colors.dangerText} />
                 <Text style={styles.deleteButtonText}>Ta bort</Text>
               </TouchableOpacity>
             </View>
@@ -366,6 +381,9 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 12,
       height: 48,
     },
+    searchIcon: {
+      marginRight: 8,
+    },
     searchInput: {
       flex: 1,
       height: '100%',
@@ -375,18 +393,15 @@ const createStyles = (colors: ThemeColors) =>
     clearSearchBtn: {
       padding: 6,
     },
-    clearSearchBtnText: {
-      fontSize: 16,
-      color: colors.textMuted,
-      fontWeight: 'bold',
-    },
     toggleFormButton: {
       backgroundColor: colors.primary,
       paddingHorizontal: 16,
       height: 48,
       borderRadius: 10,
+      flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
+      gap: 6,
     },
     toggleFormButtonActive: {
       backgroundColor: colors.textMuted,
@@ -468,8 +483,10 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 10,
       paddingHorizontal: 14,
       borderRadius: 8,
+      flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
+      gap: 6,
     },
     skuScanBtnText: {
       color: colors.primaryStrongText,
@@ -510,6 +527,9 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 8,
       paddingHorizontal: 12,
       borderRadius: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
     },
     editButtonText: { color: colors.warningText, fontWeight: '700', fontSize: 13 },
     deleteButton: {
@@ -519,6 +539,9 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 8,
       paddingHorizontal: 12,
       borderRadius: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
     },
     deleteButtonText: { color: colors.dangerText, fontWeight: '700', fontSize: 13 },
 

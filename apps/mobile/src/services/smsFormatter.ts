@@ -2,13 +2,13 @@ export const DEFAULT_STAMP_PURCHASE_MESSAGE =
   'Tack för ditt besök hos {butik}! Du fick +{stämplar} stämpel och har nu {saldo} stämplar ({kvar_till_bonus} kvar till din bonus: {bonus}).';
 
 export const DEFAULT_STAMP_BONUS_MESSAGE =
-  'Tack för ditt besök hos {butik}! Grattis! 🎉 Du har fyllt ditt stämpelkort och har en bonus ({bonus}) att hämta ut vid nästa besök!';
+  'Tack för ditt besök hos {butik}! Grattis! Du har fyllt ditt stämpelkort och har en bonus ({bonus}) att hämta ut vid nästa besök!';
 
 export const DEFAULT_POINTS_PURCHASE_MESSAGE =
   'Tack för ditt köp hos {butik}! Ditt köp på {köpesumma} kr har registrerats. Du har nu {kvar_till_bonus} kr kvar till din nästa bonus ({bonus} kr)!';
 
 export const DEFAULT_POINTS_BONUS_MESSAGE =
-  'Tack för ditt köp hos {butik}! Ditt köp på {köpesumma} kr har registrerats. Grattis! 🎉 Du har nått en ny bonusnivå ({bonus} kr) att nyttja vid ditt nästa köp! Du har nu {kvar_till_bonus} kr kvar till nästa bonus.';
+  'Tack för ditt köp hos {butik}! Ditt köp på {köpesumma} kr har registrerats. Grattis! Du har nått en ny bonusnivå ({bonus} kr) att nyttja vid ditt nästa köp! Du har nu {kvar_till_bonus} kr kvar till nästa bonus.';
 
 export const DEFAULT_PURCHASE_MESSAGE = DEFAULT_STAMP_PURCHASE_MESSAGE;
 export const DEFAULT_BONUS_MESSAGE = DEFAULT_STAMP_BONUS_MESSAGE;
