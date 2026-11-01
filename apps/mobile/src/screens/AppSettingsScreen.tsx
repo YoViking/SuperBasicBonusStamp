@@ -7,8 +7,9 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { Sun, Moon, Smartphone, LogOut } from 'lucide-react-native';
 import { useTheme, ThemeColors, ThemeMode } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
+import { LANGUAGE_OPTIONS } from '../i18n/translations';
 
 interface AppSettingsScreenProps {
   onLogout: () => Promise<void>;
@@ -16,45 +17,45 @@ interface AppSettingsScreenProps {
 
 export default function AppSettingsScreen({ onLogout }: AppSettingsScreenProps) {
   const { colors, themeMode, setThemeMode } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const themeOptions: {
-    mode: ThemeMode;
-    label: string;
-    desc: string;
-    Icon: typeof Sun;
-  }[] = [
+  const themeOptions: { mode: ThemeMode; label: string; desc: string; emoji: string }[] = [
     {
       mode: 'light',
-      label: 'Ljust',
-      desc: 'Klassiskt ljust utseende',
-      Icon: Sun,
+      label: t.appSettings.lightLabel,
+      desc: t.appSettings.lightDesc,
+      emoji: '☀️',
     },
     {
       mode: 'dark',
-      label: 'Mörkt',
-      desc: 'Skonsamt i mörkare miljö',
-      Icon: Moon,
+      label: t.appSettings.darkLabel,
+      desc: t.appSettings.darkDesc,
+      emoji: '🌙',
     },
     {
       mode: 'system',
-      label: 'System',
-      desc: 'Följer enhetens inställning',
-      Icon: Smartphone,
+      label: t.appSettings.systemLabel,
+      desc: t.appSettings.systemDesc,
+      emoji: '📱',
     },
   ];
 
   const confirmLogout = () => {
-    Alert.alert('Logga ut', 'Är du säker på att du vill logga ut från kassan?', [
-      { text: 'Avbryt', style: 'cancel' },
-      {
-        text: 'Logga ut',
-        style: 'destructive',
-        onPress: () => {
-          onLogout();
+    Alert.alert(
+      t.appSettings.logoutConfirmTitle,
+      t.appSettings.logoutConfirmMessage,
+      [
+        { text: t.appSettings.cancel, style: 'cancel' },
+        {
+          text: t.appSettings.logoutBtn,
+          style: 'destructive',
+          onPress: () => {
+            onLogout();
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   return (
@@ -64,29 +65,19 @@ export default function AppSettingsScreen({ onLogout }: AppSettingsScreenProps) 
     >
       {/* UTSEENDE / TEMA */}
       <View style={styles.card}>
-        <Text style={styles.sectionHeader}>Utseende (Tema)</Text>
-        <Text style={styles.helperText}>
-          Välj om appen ska visas i ljust läge, mörkt läge eller följa enhetens systeminställning.
-        </Text>
+        <Text style={styles.sectionHeader}>{t.appSettings.themeTitle}</Text>
+        <Text style={styles.helperText}>{t.appSettings.themeHelper}</Text>
 
         <View style={styles.themeRow}>
           {themeOptions.map((opt) => {
             const active = themeMode === opt.mode;
-            const IconComponent = opt.Icon;
             return (
               <TouchableOpacity
                 key={opt.mode}
                 style={[styles.modeCard, active && styles.modeCardActive]}
                 onPress={() => setThemeMode(opt.mode)}
               >
-                <View style={styles.modeIconWrapper}>
-                  <IconComponent
-                    size={24}
-                    color={
-                      active ? colors.primaryStrongText : colors.textSecondary
-                    }
-                  />
-                </View>
+                <Text style={styles.modeEmoji}>{opt.emoji}</Text>
                 <Text
                   style={[styles.modeTitle, active && styles.modeTitleActive]}
                 >
@@ -99,16 +90,39 @@ export default function AppSettingsScreen({ onLogout }: AppSettingsScreenProps) 
         </View>
       </View>
 
+      {/* SPRÅK */}
+      <View style={styles.card}>
+        <Text style={styles.sectionHeader}>{t.appSettings.languageTitle}</Text>
+        <Text style={styles.helperText}>{t.appSettings.languageHelper}</Text>
+
+        <View style={styles.gridRow}>
+          {LANGUAGE_OPTIONS.map((opt) => {
+            const active = language === opt.code;
+            return (
+              <TouchableOpacity
+                key={opt.code}
+                style={[styles.langCard, active && styles.modeCardActive]}
+                onPress={() => setLanguage(opt.code)}
+              >
+                <Text style={styles.modeEmoji}>{opt.flag}</Text>
+                <Text
+                  style={[styles.modeTitle, active && styles.modeTitleActive]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       {/* KONTO & SESSION */}
       <View style={styles.card}>
-        <Text style={styles.sectionHeader}>Konto</Text>
-        <Text style={styles.helperText}>
-          Avsluta din nuvarande session eller byt butikskonto.
-        </Text>
+        <Text style={styles.sectionHeader}>{t.appSettings.accountTitle}</Text>
+        <Text style={styles.helperText}>{t.appSettings.accountHelper}</Text>
 
         <TouchableOpacity style={styles.logoutButton} onPress={confirmLogout}>
-          <LogOut size={18} color={colors.dangerText} />
-          <Text style={styles.logoutButtonText}>Logga ut</Text>
+          <Text style={styles.logoutButtonText}>{t.appSettings.logoutBtn}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -150,6 +164,11 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       gap: 10,
     },
+    gridRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
     modeCard: {
       flex: 1,
       borderWidth: 2,
@@ -159,11 +178,23 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surfaceInput,
       alignItems: 'center',
     },
+    langCard: {
+      flexGrow: 1,
+      minWidth: '45%',
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 12,
+      backgroundColor: colors.surfaceInput,
+      alignItems: 'center',
+    },
     modeCardActive: {
       borderColor: colors.primary,
       backgroundColor: colors.primarySoft,
     },
-    modeIconWrapper: {
+    modeEmoji: {
+      fontSize: 24,
       marginBottom: 6,
     },
     modeTitle: {
@@ -187,10 +218,7 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.danger,
       paddingVertical: 14,
       borderRadius: 10,
-      flexDirection: 'row',
-      justifyContent: 'center',
       alignItems: 'center',
-      gap: 8,
     },
     logoutButtonText: {
       color: colors.dangerText,

@@ -12,96 +12,35 @@ import {
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import {
-  Zap,
-  ShoppingCart,
-  Star,
-  Coins,
-  Smartphone,
-  PartyPopper,
-  Plus,
-} from 'lucide-react-native';
-import {
   getStoreSettings,
   saveStoreSettings,
   BonusType,
   PosMode,
 } from '../db/operations';
 import {
-  DEFAULT_STAMP_PURCHASE_MESSAGE,
-  DEFAULT_STAMP_BONUS_MESSAGE,
-  DEFAULT_POINTS_PURCHASE_MESSAGE,
-  DEFAULT_POINTS_BONUS_MESSAGE,
-  normalizePurchaseTemplate,
-  normalizeBonusTemplate,
+  getAllDefaultPurchaseTemplates,
+  getAllDefaultBonusTemplates,
   formatSmsMessage,
 } from '../services/smsFormatter';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function BonusSettingsScreen() {
   const isFocused = useIsFocused();
   const { colors } = useTheme();
+  const { language, t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const [storeName, setStoreName] = useState('Min Butik');
+  const currency = 'kr';
+
+  const [storeName, setStoreName] = useState(t.pos.defaultStoreName);
   const [bonusType, setBonusType] = useState<BonusType>('STAMPS');
   const [posMode, setPosMode] = useState<PosMode>('QUICK');
   const [threshold, setThreshold] = useState('10');
   const [rewardAmount, setRewardAmount] = useState('1');
-  const [rewardDescription, setRewardDescription] = useState('1 gratis vara');
-  const [purchaseMessage, setPurchaseMessage] = useState(DEFAULT_STAMP_PURCHASE_MESSAGE);
-  const [bonusMessage, setBonusMessage] = useState(DEFAULT_STAMP_BONUS_MESSAGE);
-  const [purchaseSelection, setPurchaseSelection] = useState<{
-    start: number;
-    end: number;
-  } | null>(null);
-  const [bonusSelection, setBonusSelection] = useState<{
-    start: number;
-    end: number;
-  } | null>(null);
-
-  const smsQuickTags = useMemo(
-    () => [
-      { label: 'Butikens namn', tag: '{butik}' },
-      { label: 'Kundens saldo', tag: '{saldo}' },
-      { label: 'Kvar till bonus', tag: '{kvar_till_bonus}' },
-      { label: 'Bonusen', tag: '{bonus}' },
-      {
-        label: bonusType === 'STAMPS' ? 'Nya stämplar' : 'Köpesumma',
-        tag: bonusType === 'STAMPS' ? '{stämplar}' : '{köpesumma}',
-      },
-    ],
-    [bonusType]
-  );
-
-  const insertTag = (
-    tag: string,
-    currentText: string,
-    setText: (val: string) => void,
-    selection: { start: number; end: number } | null,
-    setSelection: (sel: { start: number; end: number } | null) => void
-  ) => {
-    if (selection && selection.start <= currentText.length) {
-      const before = currentText.slice(0, selection.start);
-      const after = currentText.slice(selection.end);
-      const needsSpaceBefore =
-        before.length > 0 && !/\s$/.test(before) && !/[([{]$/.test(before);
-      const needsSpaceAfter =
-        after.length > 0 && !/^\s/.test(after) && !/^[.,!?)\]}]/.test(after);
-      const inserted = `${needsSpaceBefore ? ' ' : ''}${tag}${
-        needsSpaceAfter ? ' ' : ''
-      }`;
-      const nextText = `${before}${inserted}${after}`;
-      const nextCursor = before.length + inserted.length;
-      setText(nextText);
-      setSelection({ start: nextCursor, end: nextCursor });
-    } else {
-      const needsSpace =
-        currentText.length > 0 && !/\s$/.test(currentText);
-      const nextText = `${currentText}${needsSpace ? ' ' : ''}${tag}`;
-      setText(nextText);
-      setSelection({ start: nextText.length, end: nextText.length });
-    }
-  };
+  const [rewardDescription, setRewardDescription] = useState(t.pos.defaultRewardDesc);
+  const [purchaseMessage, setPurchaseMessage] = useState(t.sms.defaultStampPurchase);
+  const [bonusMessage, setBonusMessage] = useState(t.sms.defaultStampBonus);
 
   const loadSettings = async () => {
     try {
@@ -111,13 +50,30 @@ export default function BonusSettingsScreen() {
       setPosMode(data.posMode);
       setThreshold(data.threshold.toString());
       setRewardAmount(data.rewardAmount.toString());
-      setRewardDescription(data.rewardDescription || '1 gratis vara');
-      setPurchaseMessage(
-        normalizePurchaseTemplate(data.purchaseMessage, data.bonusType)
-      );
-      setBonusMessage(
-        normalizeBonusTemplate(data.bonusMessage, data.bonusType)
-      );
+      setRewardDescription(data.rewardDescription || t.pos.defaultRewardDesc);
+
+      const defaultPurchases = getAllDefaultPurchaseTemplates();
+      const defaultBonuses = getAllDefaultBonusTemplates();
+
+      if (defaultPurchases.has(data.purchaseMessage?.trim())) {
+        setPurchaseMessage(
+          data.bonusType === 'STAMPS'
+            ? t.sms.defaultStampPurchase
+            : t.sms.defaultPointsPurchase
+        );
+      } else {
+        setPurchaseMessage(data.purchaseMessage);
+      }
+
+      if (defaultBonuses.has(data.bonusMessage?.trim())) {
+        setBonusMessage(
+          data.bonusType === 'STAMPS'
+            ? t.sms.defaultStampBonus
+            : t.sms.defaultPointsBonus
+        );
+      } else {
+        setBonusMessage(data.bonusMessage);
+      }
     } catch (err) {
       console.error('Kunde inte läsa butiksinställningar', err);
     }
@@ -127,21 +83,34 @@ export default function BonusSettingsScreen() {
     if (isFocused) {
       loadSettings();
     }
-  }, [isFocused]);
+  }, [isFocused, language]);
 
   const handleSelectBonusType = (nextType: BonusType) => {
     if (nextType === bonusType) return;
     setBonusType(nextType);
 
+    const defaultPurchases = getAllDefaultPurchaseTemplates();
+    const defaultBonuses = getAllDefaultBonusTemplates();
+
     if (nextType === 'STAMPS') {
       if (threshold === '1000') setThreshold('10');
       if (rewardAmount === '100') setRewardAmount('1');
+      if (defaultPurchases.has(purchaseMessage.trim())) {
+        setPurchaseMessage(t.sms.defaultStampPurchase);
+      }
+      if (defaultBonuses.has(bonusMessage.trim())) {
+        setBonusMessage(t.sms.defaultStampBonus);
+      }
     } else {
       if (threshold === '10') setThreshold('1000');
       if (rewardAmount === '1') setRewardAmount('100');
+      if (defaultPurchases.has(purchaseMessage.trim())) {
+        setPurchaseMessage(t.sms.defaultPointsPurchase);
+      }
+      if (defaultBonuses.has(bonusMessage.trim())) {
+        setBonusMessage(t.sms.defaultPointsBonus);
+      }
     }
-    setPurchaseMessage((prev) => normalizePurchaseTemplate(prev, nextType));
-    setBonusMessage((prev) => normalizeBonusTemplate(prev, nextType));
   };
 
   const handleSave = async () => {
@@ -152,22 +121,19 @@ export default function BonusSettingsScreen() {
         parseFloat(rewardAmount) || (bonusType === 'STAMPS' ? 1 : 100);
 
       await saveStoreSettings({
-        storeName: storeName.trim() || 'Min Butik',
+        storeName: storeName.trim() || t.pos.defaultStoreName,
         bonusType,
         posMode,
         threshold: numThreshold,
         rewardAmount: numReward,
-        rewardDescription: rewardDescription.trim() || '1 gratis vara',
+        rewardDescription: rewardDescription.trim() || t.pos.defaultRewardDesc,
         purchaseMessage: purchaseMessage.trim(),
         bonusMessage: bonusMessage.trim(),
       });
 
-      Alert.alert(
-        'Sparat!',
-        'Butiksprofilen, kassaläget och bonusreglerna har uppdaterats.'
-      );
+      Alert.alert(t.bonusSettings.savedTitle, t.bonusSettings.savedMsg);
     } catch (err: any) {
-      Alert.alert('Fel', 'Kunde inte spara inställningar: ' + err.message);
+      Alert.alert(t.pos.errorTitle, t.bonusSettings.saveErrorMsg + err.message);
     }
   };
 
@@ -189,6 +155,8 @@ export default function BonusSettingsScreen() {
     rewardDescription,
     currentProgress: sampleProgress,
     bonusType,
+    language,
+    currencySymbol: currency,
   });
 
   const previewBonus = formatSmsMessage(bonusMessage, {
@@ -200,6 +168,8 @@ export default function BonusSettingsScreen() {
     rewardDescription,
     currentProgress: numThreshold,
     bonusType,
+    language,
+    currencySymbol: currency,
   });
 
   return (
@@ -217,18 +187,18 @@ export default function BonusSettingsScreen() {
       >
         {/* 1. BUTIKSPROFIL & KASSALÄGE */}
         <View style={styles.card}>
-          <Text style={styles.sectionHeader}>1. Butik & Kassaläge</Text>
+          <Text style={styles.sectionHeader}>{t.bonusSettings.section1Title}</Text>
 
-          <Text style={styles.label}>Butikens namn (syns i SMS till kund):</Text>
+          <Text style={styles.label}>{t.bonusSettings.storeNameLabel}</Text>
           <TextInput
             style={styles.input}
             value={storeName}
             onChangeText={setStoreName}
-            placeholder="t.ex. Café Hörnan"
+            placeholder={t.bonusSettings.storeNamePlaceholder}
             placeholderTextColor={colors.placeholder}
           />
 
-          <Text style={styles.label}>Hur vill du använda kassan?</Text>
+          <Text style={styles.label}>{t.bonusSettings.posModeLabel}</Text>
           <View style={styles.toggleRow}>
             <TouchableOpacity
               style={[
@@ -237,27 +207,16 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => setPosMode('QUICK')}
             >
-              <View style={styles.modeIconWrapper}>
-                <Zap
-                  size={26}
-                  color={
-                    posMode === 'QUICK'
-                      ? colors.primaryStrongText
-                      : colors.textSecondary
-                  }
-                />
-              </View>
+              <Text style={styles.modeEmoji}>⚡</Text>
               <Text
                 style={[
                   styles.modeTitle,
                   posMode === 'QUICK' && styles.modeTitleActive,
                 ]}
               >
-                Snabbläge
+                {t.bonusSettings.quickModeTitle}
               </Text>
-              <Text style={styles.modeDesc}>
-                Slå bara in telefonnummer & ge stämpel/belopp direkt (ingen varukorg)
-              </Text>
+              <Text style={styles.modeDesc}>{t.bonusSettings.quickModeDesc}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -267,37 +226,24 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => setPosMode('ARTICLES')}
             >
-              <View style={styles.modeIconWrapper}>
-                <ShoppingCart
-                  size={26}
-                  color={
-                    posMode === 'ARTICLES'
-                      ? colors.primaryStrongText
-                      : colors.textSecondary
-                  }
-                />
-              </View>
+              <Text style={styles.modeEmoji}>🛒</Text>
               <Text
                 style={[
                   styles.modeTitle,
                   posMode === 'ARTICLES' && styles.modeTitleActive,
                 ]}
               >
-                Artikelläge
+                {t.bonusSettings.articlesModeTitle}
               </Text>
-              <Text style={styles.modeDesc}>
-                Välj varor från kategorier eller scanna streckkod till varukorg
-              </Text>
+              <Text style={styles.modeDesc}>{t.bonusSettings.articlesModeDesc}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* 2. BONUSMODELL */}
         <View style={styles.card}>
-          <Text style={styles.sectionHeader}>2. Bonusmodell</Text>
-          <Text style={styles.helperText}>
-            Välj om dina kunder samlar stämplar (t.ex. var 10:e gratis) eller poäng baserat på kronor.
-          </Text>
+          <Text style={styles.sectionHeader}>{t.bonusSettings.section2Title}</Text>
+          <Text style={styles.helperText}>{t.bonusSettings.section2Helper}</Text>
 
           <View style={styles.toggleRow}>
             <TouchableOpacity
@@ -307,27 +253,16 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => handleSelectBonusType('STAMPS')}
             >
-              <View style={styles.modeIconWrapper}>
-                <Star
-                  size={26}
-                  color={
-                    bonusType === 'STAMPS'
-                      ? colors.primaryStrongText
-                      : colors.textSecondary
-                  }
-                />
-              </View>
+              <Text style={styles.modeEmoji}>⭐</Text>
               <Text
                 style={[
                   styles.modeTitle,
                   bonusType === 'STAMPS' && styles.modeTitleActive,
                 ]}
               >
-                Stämpelkort
+                {t.bonusSettings.stampCardTitle}
               </Text>
-              <Text style={styles.modeDesc}>
-                Samla antal stämplar (t.ex. 10 st = 1 gratis)
-              </Text>
+              <Text style={styles.modeDesc}>{t.bonusSettings.stampCardDesc}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -337,64 +272,55 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => handleSelectBonusType('POINTS')}
             >
-              <View style={styles.modeIconWrapper}>
-                <Coins
-                  size={26}
-                  color={
-                    bonusType === 'POINTS'
-                      ? colors.primaryStrongText
-                      : colors.textSecondary
-                  }
-                />
-              </View>
+              <Text style={styles.modeEmoji}>💰</Text>
               <Text
                 style={[
                   styles.modeTitle,
                   bonusType === 'POINTS' && styles.modeTitleActive,
                 ]}
               >
-                Poäng / Kronor
+                {t.bonusSettings.pointsTitle}
               </Text>
               <Text style={styles.modeDesc}>
-                Handla för ett belopp (t.ex. 1000 kr = 100 kr rabatt)
+                {t.bonusSettings.pointsDesc(currency)}
               </Text>
             </TouchableOpacity>
           </View>
 
           {bonusType === 'STAMPS' ? (
             <View style={{ marginTop: 12 }}>
-              <Text style={styles.label}>Antal stämplar för fullt kort:</Text>
+              <Text style={styles.label}>{t.bonusSettings.stampsThresholdLabel}</Text>
               <TextInput
                 style={styles.input}
                 value={threshold}
                 onChangeText={setThreshold}
                 keyboardType="numeric"
-                placeholder="t.ex. 10"
+                placeholder="10"
                 placeholderTextColor={colors.placeholder}
               />
 
               <Text style={styles.label}>
-                Vad får kunden när kortet är fullt? (beskrivning i SMS & kassa):
+                {t.bonusSettings.stampsRewardDescLabel}
               </Text>
               <TextInput
                 style={styles.input}
                 value={rewardDescription}
                 onChangeText={setRewardDescription}
-                placeholder="t.ex. 1 valfri kaffe / 1 gratis klippning"
+                placeholder={t.bonusSettings.stampsRewardDescPlaceholder}
                 placeholderTextColor={colors.placeholder}
               />
 
               {posMode === 'ARTICLES' && (
                 <>
                   <Text style={styles.label}>
-                    Rabattvärde i kr vid inlösen i varukorg (valfritt):
+                    {t.bonusSettings.stampsDiscountValueLabel(currency)}
                   </Text>
                   <TextInput
                     style={styles.input}
                     value={rewardAmount}
                     onChangeText={setRewardAmount}
                     keyboardType="numeric"
-                    placeholder="t.ex. 45"
+                    placeholder="45"
                     placeholderTextColor={colors.placeholder}
                   />
                 </>
@@ -402,23 +328,27 @@ export default function BonusSettingsScreen() {
             </View>
           ) : (
             <View style={{ marginTop: 12 }}>
-              <Text style={styles.label}>Gräns för bonus (kr):</Text>
+              <Text style={styles.label}>
+                {t.bonusSettings.pointsThresholdLabel(currency)}
+              </Text>
               <TextInput
                 style={styles.input}
                 value={threshold}
                 onChangeText={setThreshold}
                 keyboardType="numeric"
-                placeholder="t.ex. 1000"
+                placeholder="1000"
                 placeholderTextColor={colors.placeholder}
               />
 
-              <Text style={styles.label}>Bonus att ge i rabatt (kr):</Text>
+              <Text style={styles.label}>
+                {t.bonusSettings.pointsRewardLabel(currency)}
+              </Text>
               <TextInput
                 style={styles.input}
                 value={rewardAmount}
                 onChangeText={setRewardAmount}
                 keyboardType="numeric"
-                placeholder="t.ex. 100"
+                placeholder="100"
                 placeholderTextColor={colors.placeholder}
               />
             </View>
@@ -427,42 +357,27 @@ export default function BonusSettingsScreen() {
 
         {/* 3. SMS-MALL VID VANLIGT KÖP / STÄMPEL */}
         <View style={styles.card}>
-          <Text style={styles.sectionHeader}>3. SMS-mall vid vanligt besök</Text>
+          <Text style={styles.sectionHeader}>{t.bonusSettings.section3Title}</Text>
           <Text style={styles.helperText}>
-            Anpassa meddelandet som skickas till kunden. Tryck på en knapp nedan för att lägga till automatisk uppgift i texten:
+            {t.bonusSettings.availableTagsLabel}{' '}
+            <Text style={styles.boldText}>{t.sms.tagStore}</Text>,{' '}
+            <Text style={styles.boldText}>{t.sms.tagBalance}</Text>,{' '}
+            <Text style={styles.boldText}>{t.sms.tagRemaining}</Text>,{' '}
+            <Text style={styles.boldText}>{t.sms.tagBonus}</Text>{' '}
+            {t.bonusSettings.andWord}{' '}
+            <Text style={styles.boldText}>
+              {bonusType === 'STAMPS' ? t.sms.tagStamps : t.sms.tagAmount}
+            </Text>
+            .
           </Text>
-
-          <View style={styles.tagChipsRow}>
-            {smsQuickTags.map((item) => (
-              <TouchableOpacity
-                key={item.tag}
-                style={styles.tagChip}
-                onPress={() =>
-                  insertTag(
-                    item.tag,
-                    purchaseMessage,
-                    setPurchaseMessage,
-                    purchaseSelection,
-                    setPurchaseSelection
-                  )
-                }
-              >
-                <Plus size={13} color={colors.primaryStrongText} />
-                <Text style={styles.tagChipText}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
 
           <TextInput
             style={styles.textArea}
             value={purchaseMessage}
             onChangeText={setPurchaseMessage}
-            onSelectionChange={(e) =>
-              setPurchaseSelection(e.nativeEvent.selection)
-            }
             multiline
             numberOfLines={4}
-            placeholder="Skriv SMS-mallen..."
+            placeholder={t.bonusSettings.purchaseTemplatePlaceholder}
             placeholderTextColor={colors.placeholder}
           />
 
@@ -471,61 +386,36 @@ export default function BonusSettingsScreen() {
             onPress={() =>
               setPurchaseMessage(
                 bonusType === 'STAMPS'
-                  ? DEFAULT_STAMP_PURCHASE_MESSAGE
-                  : DEFAULT_POINTS_PURCHASE_MESSAGE
+                  ? t.sms.defaultStampPurchase
+                  : t.sms.defaultPointsPurchase
               )
             }
           >
-            <Text style={styles.resetButtonText}>Återställ till standardmall</Text>
+            <Text style={styles.resetButtonText}>
+              {t.bonusSettings.resetTemplateBtn}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.previewBox}>
-            <View style={styles.previewTitleRow}>
-              <Smartphone size={15} color={colors.primaryStrongText} />
-              <Text style={styles.previewTitle}>Förhandsgranskning:</Text>
-            </View>
+            <Text style={styles.previewTitle}>
+              📱 {t.bonusSettings.previewLabel}
+            </Text>
             <Text style={styles.previewText}>{previewPurchase}</Text>
           </View>
         </View>
 
         {/* 4. SMS-MALL VID UPPNÅDD BONUS */}
         <View style={styles.card}>
-          <Text style={styles.sectionHeader}>4. SMS-mall vid uppnådd bonus</Text>
-          <Text style={styles.helperText}>
-            Skickas när kunden fyller sitt kort eller når en ny bonusnivå. Tryck på en knapp för att infoga uppgift:
-          </Text>
-
-          <View style={styles.tagChipsRow}>
-            {smsQuickTags.map((item) => (
-              <TouchableOpacity
-                key={item.tag}
-                style={styles.tagChip}
-                onPress={() =>
-                  insertTag(
-                    item.tag,
-                    bonusMessage,
-                    setBonusMessage,
-                    bonusSelection,
-                    setBonusSelection
-                  )
-                }
-              >
-                <Plus size={13} color={colors.primaryStrongText} />
-                <Text style={styles.tagChipText}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Text style={styles.sectionHeader}>{t.bonusSettings.section4Title}</Text>
+          <Text style={styles.helperText}>{t.bonusSettings.section4Helper}</Text>
 
           <TextInput
             style={styles.textArea}
             value={bonusMessage}
             onChangeText={setBonusMessage}
-            onSelectionChange={(e) =>
-              setBonusSelection(e.nativeEvent.selection)
-            }
             multiline
             numberOfLines={4}
-            placeholder="Skriv SMS-mallen vid uppnådd bonus..."
+            placeholder={t.bonusSettings.bonusTemplatePlaceholder}
             placeholderTextColor={colors.placeholder}
           />
 
@@ -534,25 +424,26 @@ export default function BonusSettingsScreen() {
             onPress={() =>
               setBonusMessage(
                 bonusType === 'STAMPS'
-                  ? DEFAULT_STAMP_BONUS_MESSAGE
-                  : DEFAULT_POINTS_BONUS_MESSAGE
+                  ? t.sms.defaultStampBonus
+                  : t.sms.defaultPointsBonus
               )
             }
           >
-            <Text style={styles.resetButtonText}>Återställ till standardmall</Text>
+            <Text style={styles.resetButtonText}>
+              {t.bonusSettings.resetTemplateBtn}
+            </Text>
           </TouchableOpacity>
 
           <View style={styles.previewBox}>
-            <View style={styles.previewTitleRow}>
-              <PartyPopper size={15} color={colors.primaryStrongText} />
-              <Text style={styles.previewTitle}>Förhandsgranskning:</Text>
-            </View>
+            <Text style={styles.previewTitle}>
+              🎉 {t.bonusSettings.previewLabel}
+            </Text>
             <Text style={styles.previewText}>{previewBonus}</Text>
           </View>
         </View>
 
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Spara alla inställningar</Text>
+          <Text style={styles.saveButtonText}>{t.bonusSettings.saveAllBtn}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -624,7 +515,8 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.primary,
       backgroundColor: colors.primarySoft,
     },
-    modeIconWrapper: {
+    modeEmoji: {
+      fontSize: 26,
       marginBottom: 6,
     },
     modeTitle: {
@@ -655,28 +547,6 @@ const createStyles = (colors: ThemeColors) =>
       lineHeight: 22,
       color: colors.text,
     },
-    tagChipsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginBottom: 12,
-    },
-    tagChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 11,
-      paddingVertical: 7,
-      borderRadius: 18,
-      backgroundColor: colors.primarySoft,
-      borderWidth: 1,
-      borderColor: colors.primarySoftBorder,
-    },
-    tagChipText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: colors.primaryStrongText,
-    },
     resetButton: {
       alignSelf: 'flex-start',
       marginBottom: 14,
@@ -694,16 +564,11 @@ const createStyles = (colors: ThemeColors) =>
       padding: 14,
       borderRadius: 8,
     },
-    previewTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 4,
-    },
     previewTitle: {
       fontSize: 13,
       fontWeight: '700',
       color: colors.primaryStrongText,
+      marginBottom: 4,
     },
     previewText: {
       fontSize: 14,

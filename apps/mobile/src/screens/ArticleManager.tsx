@@ -11,14 +11,6 @@ import {
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import {
-  Search,
-  X,
-  Plus,
-  ScanBarcode,
-  Pencil,
-  Trash2,
-} from 'lucide-react-native';
-import {
   getArticles,
   addArticle,
   updateArticle,
@@ -27,16 +19,20 @@ import {
 } from '../db/operations';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function ArticleManager() {
   const isFocused = useIsFocused();
   const { colors } = useTheme();
+  const { t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const currency = 'kr';
 
   const [sku, setSku] = useState('');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [category, setCategory] = useState('Allmänt');
+  const [category, setCategory] = useState(t.articles.defaultCategory);
   const [savedArticles, setSavedArticles] = useState<Article[]>([]);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,7 +43,10 @@ export default function ArticleManager() {
     setIsScannerOpen(false);
     const cleaned = scannedCode.trim();
     setSku(cleaned);
-    Alert.alert('Streckkod avläst!', `SKU sattes till: ${cleaned}`);
+    Alert.alert(
+      t.articles.barcodeScannedTitle,
+      t.articles.barcodeScannedMsg(cleaned)
+    );
   };
 
   const loadArticles = async () => {
@@ -66,39 +65,42 @@ export default function ArticleManager() {
   }, [isFocused]);
 
   const existingCategories = Array.from(
-    new Set(['Allmänt', ...savedArticles.map((a) => a.category).filter(Boolean)])
+    new Set([
+      t.articles.defaultCategory,
+      ...savedArticles.map((a) => a.category).filter(Boolean),
+    ])
   );
 
   const handleSaveArticle = async () => {
     if (!name.trim() || !price.trim()) {
-      Alert.alert('Info saknas', 'Fyll i både artikelnamn och pris.');
+      Alert.alert(t.articles.missingInfoTitle, t.articles.missingInfoMsg);
       return;
     }
 
     const numericPrice = parseFloat(price.replace(',', '.'));
     if (isNaN(numericPrice)) {
-      Alert.alert('Felaktigt pris', 'Ange ett giltigt nummer för pris.');
+      Alert.alert(t.articles.invalidPriceTitle, t.articles.invalidPriceMsg);
       return;
     }
 
     try {
-      const cleanCategory = category.trim() || 'Allmänt';
+      const cleanCategory = category.trim() || t.articles.defaultCategory;
       if (editingArticleId) {
         await updateArticle(editingArticleId, sku, name, numericPrice, cleanCategory);
-        Alert.alert('Uppdaterad!', 'Artikeln har sparats.');
+        Alert.alert(t.articles.updatedTitle, t.articles.updatedMsg);
       } else {
         await addArticle(sku, name, numericPrice, cleanCategory);
-        Alert.alert('Sparat!', 'Ny artikel har lagts till.');
+        Alert.alert(t.articles.savedTitle, t.articles.savedMsg);
       }
       setSku('');
       setName('');
       setPrice('');
-      setCategory('Allmänt');
+      setCategory(t.articles.defaultCategory);
       setEditingArticleId(null);
       setIsFormVisible(false);
       loadArticles();
     } catch (error: any) {
-      Alert.alert('Fel', error.message);
+      Alert.alert(t.pos.errorTitle, error.message);
     }
   };
 
@@ -107,18 +109,18 @@ export default function ArticleManager() {
     setSku(item.sku || '');
     setName(item.name);
     setPrice(item.price.toString());
-    setCategory(item.category || 'Allmänt');
+    setCategory(item.category || t.articles.defaultCategory);
     setIsFormVisible(true);
   };
 
   const handleDelete = (item: Article) => {
     Alert.alert(
-      'Radera artikel',
-      `Är du säker på att du vill ta bort "${item.name}"?`,
+      t.articles.deleteAlertTitle,
+      t.articles.deleteAlertMsg(item.name),
       [
-        { text: 'Avbryt', style: 'cancel' },
+        { text: t.articles.cancelBtn, style: 'cancel' },
         {
-          text: 'Ja, ta bort',
+          text: t.articles.deleteConfirmBtn,
           style: 'destructive',
           onPress: async () => {
             try {
@@ -128,7 +130,7 @@ export default function ArticleManager() {
               }
               loadArticles();
             } catch (error: any) {
-              Alert.alert('Fel vid radering', error.message);
+              Alert.alert(t.articles.deleteErrorTitle, error.message);
             }
           },
         },
@@ -140,7 +142,7 @@ export default function ArticleManager() {
     setSku('');
     setName('');
     setPrice('');
-    setCategory('Allmänt');
+    setCategory(t.articles.defaultCategory);
     setEditingArticleId(null);
     setIsFormVisible(false);
   };
@@ -159,10 +161,9 @@ export default function ArticleManager() {
       {/* SÖKFÄLT OCH KNAPP FÖR NY ARTIKEL */}
       <View style={styles.topActionsRow}>
         <View style={styles.searchContainer}>
-          <Search size={18} color={colors.textMuted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Sök artikel (namn, kategori, streckkod)..."
+            placeholder={t.articles.searchPlaceholder}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor={colors.placeholder}
@@ -173,7 +174,7 @@ export default function ArticleManager() {
               onPress={() => setSearchQuery('')}
               style={styles.clearSearchBtn}
             >
-              <X size={18} color={colors.textMuted} />
+              <Text style={styles.clearSearchBtnText}>✕</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -191,15 +192,12 @@ export default function ArticleManager() {
             }
           }}
         >
-          {!editingArticleId && !isFormVisible && (
-            <Plus size={18} color="#fff" />
-          )}
           <Text style={styles.toggleFormButtonText}>
             {editingArticleId
-              ? 'Avbryt'
+              ? t.articles.cancelBtn
               : isFormVisible
-              ? 'Dölj formulär'
-              : 'Ny artikel'}
+              ? t.articles.hideFormBtn
+              : t.articles.newArticleBtn}
           </Text>
         </TouchableOpacity>
       </View>
@@ -208,32 +206,36 @@ export default function ArticleManager() {
       {isFormVisible && (
         <View style={styles.form}>
           <Text style={styles.label}>
-            {editingArticleId ? 'Redigera artikel' : 'Lägg till ny artikel'}
+            {editingArticleId
+              ? t.articles.editArticleTitle
+              : t.articles.addArticleTitle}
           </Text>
 
-          <Text style={styles.fieldLabel}>Namn på vara / tjänst *</Text>
+          <Text style={styles.fieldLabel}>{t.articles.nameLabel}</Text>
           <TextInput
             style={styles.input}
-            placeholder="t.ex. Cappuccino, Lunchbuffé eller Klippning"
+            placeholder={t.articles.namePlaceholder}
             placeholderTextColor={colors.placeholder}
             value={name}
             onChangeText={setName}
           />
 
-          <Text style={styles.fieldLabel}>Pris (kr) *</Text>
+          <Text style={styles.fieldLabel}>
+            {t.articles.priceLabel(currency)}
+          </Text>
           <TextInput
             style={styles.input}
-            placeholder="t.ex. 45"
+            placeholder="45"
             placeholderTextColor={colors.placeholder}
             value={price}
             onChangeText={setPrice}
             keyboardType="numeric"
           />
 
-          <Text style={styles.fieldLabel}>Kategori (valfri)</Text>
+          <Text style={styles.fieldLabel}>{t.articles.categoryLabel}</Text>
           <TextInput
             style={styles.input}
-            placeholder="t.ex. Kaffe, Bakverk, Behandlingar..."
+            placeholder={t.articles.categoryPlaceholder}
             placeholderTextColor={colors.placeholder}
             value={category}
             onChangeText={setCategory}
@@ -267,11 +269,11 @@ export default function ArticleManager() {
             </ScrollView>
           )}
 
-          <Text style={styles.fieldLabel}>Streckkod / SKU (valfritt)</Text>
+          <Text style={styles.fieldLabel}>{t.articles.skuLabel}</Text>
           <View style={styles.skuRow}>
             <TextInput
               style={[styles.input, styles.skuInput]}
-              placeholder="Lämna tomt eller scanna streckkod"
+              placeholder={t.articles.skuPlaceholder}
               placeholderTextColor={colors.placeholder}
               value={sku}
               onChangeText={setSku}
@@ -280,8 +282,7 @@ export default function ArticleManager() {
               style={styles.skuScanBtn}
               onPress={() => setIsScannerOpen(true)}
             >
-              <ScanBarcode size={18} color={colors.primaryStrongText} />
-              <Text style={styles.skuScanBtnText}>Scanna</Text>
+              <Text style={styles.skuScanBtnText}>{t.articles.scanBtn}</Text>
             </TouchableOpacity>
           </View>
 
@@ -293,13 +294,17 @@ export default function ArticleManager() {
             onPress={handleSaveArticle}
           >
             <Text style={styles.buttonText}>
-              {editingArticleId ? 'Uppdatera Artikel' : 'Spara Artikel'}
+              {editingArticleId
+                ? t.articles.updateArticleBtn
+                : t.articles.saveArticleBtn}
             </Text>
           </TouchableOpacity>
 
           {editingArticleId && (
             <TouchableOpacity style={styles.cancelButton} onPress={cancelEdit}>
-              <Text style={styles.cancelButtonText}>Avbryt redigering</Text>
+              <Text style={styles.cancelButtonText}>
+                {t.articles.cancelEditBtn}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -314,8 +319,8 @@ export default function ArticleManager() {
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
               {searchQuery
-                ? 'Inga artiklar matchade din sökning.'
-                : 'Inga artiklar sparade än. Klicka på "+ Ny artikel" om du vill använda Artikelläge i kassan.'}
+                ? t.articles.emptySearchText
+                : t.articles.emptyListText}
             </Text>
           </View>
         }
@@ -324,10 +329,12 @@ export default function ArticleManager() {
             <View style={styles.itemInfo}>
               <Text style={styles.itemTitle}>{item.name}</Text>
               <Text style={styles.itemSub}>
-                Kategori: {item.category}
+                {t.articles.categoryPrefix} {item.category}
                 {item.sku ? `  •  SKU: ${item.sku}` : ''}
               </Text>
-              <Text style={styles.itemPrice}>{item.price} kr</Text>
+              <Text style={styles.itemPrice}>
+                {item.price} {currency}
+              </Text>
             </View>
 
             <View style={styles.actionButtons}>
@@ -335,15 +342,13 @@ export default function ArticleManager() {
                 style={styles.editButton}
                 onPress={() => handleEdit(item)}
               >
-                <Pencil size={14} color={colors.warningText} />
-                <Text style={styles.editButtonText}>Redigera</Text>
+                <Text style={styles.editButtonText}>{t.articles.editBtn}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => handleDelete(item)}
               >
-                <Trash2 size={14} color={colors.dangerText} />
-                <Text style={styles.deleteButtonText}>Ta bort</Text>
+                <Text style={styles.deleteButtonText}>{t.articles.deleteBtn}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -354,8 +359,8 @@ export default function ArticleManager() {
         visible={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onScan={handleBarcodeScanned}
-        title="Scanna artikelns streckkod"
-        subtitle="Rikta kameran mot streckkoden på förpackningen"
+        title={t.articles.scanModalTitle}
+        subtitle={t.articles.scanModalSubtitle}
       />
     </View>
   );
@@ -381,9 +386,6 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 12,
       height: 48,
     },
-    searchIcon: {
-      marginRight: 8,
-    },
     searchInput: {
       flex: 1,
       height: '100%',
@@ -393,15 +395,18 @@ const createStyles = (colors: ThemeColors) =>
     clearSearchBtn: {
       padding: 6,
     },
+    clearSearchBtnText: {
+      fontSize: 16,
+      color: colors.textMuted,
+      fontWeight: 'bold',
+    },
     toggleFormButton: {
       backgroundColor: colors.primary,
       paddingHorizontal: 16,
       height: 48,
       borderRadius: 10,
-      flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 6,
     },
     toggleFormButtonActive: {
       backgroundColor: colors.textMuted,
@@ -483,10 +488,8 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 10,
       paddingHorizontal: 14,
       borderRadius: 8,
-      flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 6,
     },
     skuScanBtnText: {
       color: colors.primaryStrongText,
@@ -527,9 +530,6 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 8,
       paddingHorizontal: 12,
       borderRadius: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
     },
     editButtonText: { color: colors.warningText, fontWeight: '700', fontSize: 13 },
     deleteButton: {
@@ -539,9 +539,6 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 8,
       paddingHorizontal: 12,
       borderRadius: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
     },
     deleteButtonText: { color: colors.dangerText, fontWeight: '700', fontSize: 13 },
 

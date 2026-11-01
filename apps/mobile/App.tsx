@@ -8,10 +8,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Store, Settings } from 'lucide-react-native';
 import { supabase, isSupabaseConfigured } from './src/db/supabase';
 import { isDemoModeActive, setDemoModeActive } from './src/db/operations';
 import { ThemeProvider, useTheme, ThemeColors } from './src/theme/ThemeContext';
+import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
 
 import PosScreen from './src/screens/PosScreen';
 import ArticleManager from './src/screens/ArticleManager';
@@ -24,6 +24,7 @@ const AdminTab = createMaterialTopTabNavigator();
 
 function AdminTabs({ onLogout }: { onLogout: () => Promise<void> }) {
   const { colors } = useTheme();
+  const { t } = useLanguage();
   return (
     <AdminTab.Navigator
       screenOptions={{
@@ -41,16 +42,16 @@ function AdminTabs({ onLogout }: { onLogout: () => Promise<void> }) {
       <AdminTab.Screen
         name="Bonus"
         component={BonusSettingsScreen}
-        options={{ title: 'Bonus & SMS' }}
+        options={{ title: t.tabs.bonusSms }}
       />
       <AdminTab.Screen
         name="Artiklar"
         component={ArticleManager}
-        options={{ title: 'Artiklar' }}
+        options={{ title: t.tabs.articles }}
       />
       <AdminTab.Screen
         name="App"
-        options={{ title: 'App' }}
+        options={{ title: t.tabs.app }}
       >
         {() => <AppSettingsScreen onLogout={onLogout} />}
       </AdminTab.Screen>
@@ -60,6 +61,7 @@ function AdminTabs({ onLogout }: { onLogout: () => Promise<void> }) {
 
 function AppContent() {
   const { colors, isDark } = useTheme();
+  const { t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -172,6 +174,7 @@ function AppContent() {
               fontSize: 16,
               fontWeight: '700',
             },
+            tabBarIcon: () => null,
             tabBarStyle: {
               backgroundColor: colors.surface,
               borderTopWidth: 1,
@@ -188,15 +191,13 @@ function AppContent() {
             name="Kassa"
             component={PosScreen}
             options={{
-              title: 'Kassa',
-              tabBarIcon: ({ color, size }) => <Store size={size} color={color} />,
+              title: t.tabs.pos,
             }}
           />
           <Tab.Screen
             name="Admin"
             options={{
-              title: 'Inställningar',
-              tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
+              title: t.tabs.settings,
             }}
           >
             {() => <AdminTabs onLogout={handleLogout} />}
@@ -211,7 +212,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppContent />
+        <LanguageProvider>
+          <AppContent />
+        </LanguageProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
