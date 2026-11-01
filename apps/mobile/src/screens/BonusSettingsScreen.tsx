@@ -12,6 +12,14 @@ import {
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import {
+  Zap,
+  ShoppingCart,
+  Star,
+  Coins,
+  Smartphone,
+  PartyPopper,
+} from 'lucide-react-native';
+import {
   getStoreSettings,
   saveStoreSettings,
   BonusType,
@@ -180,7 +188,16 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => setPosMode('QUICK')}
             >
-              <Text style={styles.modeEmoji}>⚡</Text>
+              <View style={styles.modeIconWrapper}>
+                <Zap
+                  size={26}
+                  color={
+                    posMode === 'QUICK'
+                      ? colors.primaryStrongText
+                      : colors.textSecondary
+                  }
+                />
+              </View>
               <Text
                 style={[
                   styles.modeTitle,
@@ -201,7 +218,16 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => setPosMode('ARTICLES')}
             >
-              <Text style={styles.modeEmoji}>🛒</Text>
+              <View style={styles.modeIconWrapper}>
+                <ShoppingCart
+                  size={26}
+                  color={
+                    posMode === 'ARTICLES'
+                      ? colors.primaryStrongText
+                      : colors.textSecondary
+                  }
+                />
+              </View>
               <Text
                 style={[
                   styles.modeTitle,
@@ -232,7 +258,16 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => handleSelectBonusType('STAMPS')}
             >
-              <Text style={styles.modeEmoji}>⭐</Text>
+              <View style={styles.modeIconWrapper}>
+                <Star
+                  size={26}
+                  color={
+                    bonusType === 'STAMPS'
+                      ? colors.primaryStrongText
+                      : colors.textSecondary
+                  }
+                />
+              </View>
               <Text
                 style={[
                   styles.modeTitle,
@@ -253,7 +288,16 @@ export default function BonusSettingsScreen() {
               ]}
               onPress={() => handleSelectBonusType('POINTS')}
             >
-              <Text style={styles.modeEmoji}>💰</Text>
+              <View style={styles.modeIconWrapper}>
+                <Coins
+                  size={26}
+                  color={
+                    bonusType === 'POINTS'
+                      ? colors.primaryStrongText
+                      : colors.textSecondary
+                  }
+                />
+              </View>
               <Text
                 style={[
                   styles.modeTitle,
@@ -371,7 +415,10 @@ export default function BonusSettingsScreen() {
           </TouchableOpacity>
 
           <View style={styles.previewBox}>
-            <Text style={styles.previewTitle}>📱 Förhandsgranskning:</Text>
+            <View style={styles.previewTitleRow}>
+              <Smartphone size={15} color={colors.primaryStrongText} />
+              <Text style={styles.previewTitle}>Förhandsgranskning:</Text>
+            </View>
             <Text style={styles.previewText}>{previewPurchase}</Text>
           </View>
         </View>
@@ -407,7 +454,10 @@ export default function BonusSettingsScreen() {
           </TouchableOpacity>
 
           <View style={styles.previewBox}>
-            <Text style={styles.previewTitle}>🎉 Förhandsgranskning:</Text>
+            <View style={styles.previewTitleRow}>
+              <PartyPopper size={15} color={colors.primaryStrongText} />
+              <Text style={styles.previewTitle}>Förhandsgranskning:</Text>
+            </View>
             <Text style={styles.previewText}>{previewBonus}</Text>
           </View>
         </View>
@@ -485,8 +535,7 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.primary,
       backgroundColor: colors.primarySoft,
     },
-    modeEmoji: {
-      fontSize: 26,
+    modeIconWrapper: {
       marginBottom: 6,
     },
     modeTitle: {
@@ -534,11 +583,16 @@ const createStyles = (colors: ThemeColors) =>
       padding: 14,
       borderRadius: 8,
     },
+    previewTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4,
+    },
     previewTitle: {
       fontSize: 13,
       fontWeight: '700',
       color: colors.primaryStrongText,
-      marginBottom: 4,
     },
     previewText: {
       fontSize: 14,
