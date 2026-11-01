@@ -14,9 +14,6 @@ import {
 } from 'react-native';
 import {
   Star,
-  Coins,
-  Zap,
-  ShoppingCart,
   Sparkles,
   UserCheck,
   Gift,
@@ -365,38 +362,22 @@ export default function PosScreen() {
 
   return (
     <View style={styles.container}>
-      {/* BUTIKS-BADGE HÖGST UPP */}
+      {/* BUTIKSNAMN HÖGST UPP */}
       <View style={styles.storeHeaderRow}>
         <Text style={styles.storeNameText}>
           {storeSettings?.storeName || 'Min Butik'}
         </Text>
-        <View style={styles.modePill}>
-          {bonusType === 'STAMPS' ? (
-            <Star size={13} color={colors.primaryStrongText} />
-          ) : (
-            <Coins size={13} color={colors.primaryStrongText} />
-          )}
-          <Text style={styles.modePillText}>
-            {bonusType === 'STAMPS' ? 'Stämpelkort' : 'Poäng/Kr'} •
-          </Text>
-          {posMode === 'QUICK' ? (
-            <Zap size={13} color={colors.primaryStrongText} />
-          ) : (
-            <ShoppingCart size={13} color={colors.primaryStrongText} />
-          )}
-          <Text style={styles.modePillText}>
-            {posMode === 'QUICK' ? 'Snabbläge' : 'Artikelläge'}
-          </Text>
-        </View>
       </View>
 
       {/* SÖK KUND PÅ TELEFONNUMMER */}
       <View style={styles.searchRow}>
         <TextInput
           style={styles.phoneInput}
-          placeholder="Kundens telefonnummer..."
+          placeholder="Telefonnummer..."
           placeholderTextColor={colors.placeholder}
           keyboardType="phone-pad"
+          multiline={false}
+          numberOfLines={1}
           value={phone}
           onChangeText={(text) => {
             setPhone(text);
@@ -836,20 +817,6 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '800',
       color: colors.text,
     },
-    modePill: {
-      backgroundColor: colors.modePillBg,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    modePillText: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: colors.primaryStrongText,
-    },
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -858,21 +825,25 @@ const createStyles = (colors: ThemeColors) =>
     },
     phoneInput: {
       flex: 1,
-      fontSize: 20,
+      minWidth: 0,
+      height: 48,
+      fontSize: 16,
+      lineHeight: 22,
       borderWidth: 1,
       borderColor: colors.borderInput,
       borderRadius: 10,
       paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingVertical: 10,
       backgroundColor: colors.surface,
       color: colors.text,
     },
     searchButton: {
+      height: 48,
       backgroundColor: colors.primary,
       paddingHorizontal: 18,
-      paddingVertical: 14,
       borderRadius: 10,
       justifyContent: 'center',
+      alignItems: 'center',
     },
     searchButtonText: {
       color: '#fff',
