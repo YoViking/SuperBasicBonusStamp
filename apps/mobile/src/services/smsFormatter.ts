@@ -19,11 +19,19 @@ const LEGACY_PURCHASE_TEMPLATES = new Set([
   'Tack för ditt besök hos {butik}! Du har nu {saldo} (bara {kvar_till_bonus} kvar till din bonus: {bonus}).',
   'Tack för ditt besök hos {butik}! Du fick +{stämplar} stämpel och har nu {saldo} stämplar ({kvar_till_bonus} kvar till din bonus: {bonus}).',
   'Tack för ditt köp hos {butik}! Ditt köp på {köpesumma} kr har registrerats. Du har nu {kvar_till_bonus} kr kvar till din nästa bonus ({bonus} kr)!',
+  'Tack för ditt köp på Kamera Stockholm! Ditt köp på {köpesumma} kr har registrerats. Du har nu {kvar_till_bonus} kr kvar till din nästa bonus!',
 ]);
 
 const LEGACY_BONUS_TEMPLATES = new Set([
   'Tack för ditt besök hos {butik}! Grattis! Du har nått en ny bonus ({bonus}) att nyttja vid nästa besök!',
+  'Tack för ditt besök hos {butik}! Grattis! Du har nått en ny bonus ({bonus}) att nyttja vid nästa köp!',
+  'Tack för ditt besök hos {butik}! Grattis! Du har nått en ny bonus ({bonus}) att nyttja vid nästa köp! Du har nu {kvar_till_bonus} kvar till nästa bonus.',
+  'Tack för ditt besök hos {butik}! Grattis! Du har nått en ny bonus ({bonus}) att nyttja vid ditt nästa köp! Du har nu {kvar_till_bonus} kvar till nästa bonus.',
+  'Tack för ditt besök hos {butik}! Grattis! Du har nått en ny bonus ({bonus}) att nyttja vid nästa besök! Du har nu {kvar_till_bonus} kvar till nästa bonus.',
+  'Tack för ditt besök hos {butik}! Grattis! Du har nått en ny bonusnivå ({bonus}) att nyttja vid nästa köp! Du har nu {kvar_till_bonus} kvar till nästa bonus.',
+  'Tack för ditt besök hos {butik}! Grattis! Du har nått en ny bonusnivå ({bonus}) att nyttja vid ditt nästa köp! Du har nu {kvar_till_bonus} kvar till nästa bonus.',
   'Tack för ditt köp hos {butik}! Ditt köp på {köpesumma} kr har registrerats. Grattis! Du har nått en ny bonusnivå ({bonus} kr) att nyttja vid ditt nästa köp! Du har nu {kvar_till_bonus} kr kvar till nästa bonus.',
+  'Tack för ditt köp på Kamera Stockholm! Ditt köp på {köpesumma} kr har registrerats. Grattis! Du har nått en ny bonusnivå och har en belöning att hämta ut vid ditt nästa köp! Du har nu {kvar_till_bonus} kr kvar till din nästa bonus!',
 ]);
 
 export function getAllDefaultPurchaseTemplates(): Set<string> {
@@ -40,6 +48,30 @@ export function getAllDefaultBonusTemplates(): Set<string> {
   for (const lang of Object.values(translations)) {
     set.add(lang.sms.defaultStampBonus);
     set.add(lang.sms.defaultPointsBonus);
+  }
+  return set;
+}
+
+export function getAllDefaultRewardDescriptions(): Set<string> {
+  const set = new Set<string>();
+  for (const lang of Object.values(translations)) {
+    set.add(lang.pos.defaultRewardDesc);
+  }
+  return set;
+}
+
+export function getAllDefaultStoreNames(): Set<string> {
+  const set = new Set<string>();
+  for (const lang of Object.values(translations)) {
+    set.add(lang.pos.defaultStoreName);
+  }
+  return set;
+}
+
+export function getAllDefaultCategories(): Set<string> {
+  const set = new Set<string>();
+  for (const lang of Object.values(translations)) {
+    set.add(lang.articles.defaultCategory);
   }
   return set;
 }
@@ -80,6 +112,45 @@ export function normalizeBonusTemplate(
   return trimmed;
 }
 
+export function normalizeRewardDescription(
+  description: string | undefined,
+  language: LanguageCode = 'sv'
+): string {
+  const trimmed = description?.trim();
+  const targetDefault =
+    (translations[language] || translations.sv).pos.defaultRewardDesc;
+  if (!trimmed || getAllDefaultRewardDescriptions().has(trimmed)) {
+    return targetDefault;
+  }
+  return trimmed;
+}
+
+export function normalizeStoreName(
+  storeName: string | undefined,
+  language: LanguageCode = 'sv'
+): string {
+  const trimmed = storeName?.trim();
+  const targetDefault =
+    (translations[language] || translations.sv).pos.defaultStoreName;
+  if (!trimmed || getAllDefaultStoreNames().has(trimmed)) {
+    return targetDefault;
+  }
+  return trimmed;
+}
+
+export function normalizeCategoryName(
+  category: string | undefined,
+  language: LanguageCode = 'sv'
+): string {
+  const trimmed = category?.trim();
+  const targetDefault =
+    (translations[language] || translations.sv).articles.defaultCategory;
+  if (!trimmed || getAllDefaultCategories().has(trimmed)) {
+    return targetDefault;
+  }
+  return trimmed;
+}
+
 export interface SmsFormatParams {
   amount: number;
   remaining: number;
@@ -98,8 +169,8 @@ export function formatSmsMessage(template: string, params: SmsFormatParams): str
 
   let formatted = template;
   const isPoints = params.bonusType === 'POINTS';
-  const langSms =
-    translations[params.language || 'sv']?.sms || translations.sv.sms;
+  const langCode = params.language || 'sv';
+  const langSms = translations[langCode]?.sms || translations.sv.sms;
   const currency = params.currencySymbol || 'kr';
 
   const amountNum = params.amount ?? 0;
@@ -132,9 +203,12 @@ export function formatSmsMessage(template: string, params: SmsFormatParams): str
   const purchaseAmountStr = `${amountStr} ${currency}`;
 
   const rewardNum = params.reward ?? (isPoints ? 100 : 1);
+  const normalizedRewardDesc = params.rewardDescription?.trim()
+    ? normalizeRewardDescription(params.rewardDescription, langCode)
+    : '';
   const rewardStr =
-    !isPoints && params.rewardDescription?.trim()
-      ? params.rewardDescription.trim()
+    !isPoints && normalizedRewardDesc
+      ? normalizedRewardDesc
       : isPoints
       ? `${rewardNum} ${currency} ${langSms.discountWord}`
       : `${rewardNum} ${langSms.freeItemFallback}`;
@@ -170,7 +244,7 @@ export function formatSmsMessage(template: string, params: SmsFormatParams): str
       remainingWithUnitStr
     )
     .replace(
-      /\{(bonusbelopp|belöning|bonus|reward|prämie|recompensa)\}(\s*(?:kr|£|\$|€|sek|gbp|usd|eur)(?:\s*(?:rabatt|discount|descuento))?)?/gi,
+      /\{(bonusbelopp|belöning|bonus|reward|prämie|recompensa)\}(\s*(?:kr|£|\$|€|sek|gbp|usd|eur)(?:\s*(?:rabatt|discount|de descuento|descuento))?)?/gi,
       rewardStr
     )
     .replace(

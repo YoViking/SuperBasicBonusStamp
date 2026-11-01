@@ -12,6 +12,13 @@ import {
 const LANGUAGE_STORAGE_KEY = '@sbbs_language';
 const CURRENCY_STORAGE_KEY = '@sbbs_currency';
 
+export const DEFAULT_CURRENCY_BY_LANGUAGE: Record<LanguageCode, CurrencyCode> = {
+  sv: 'SEK',
+  en: 'GBP',
+  de: 'EUR',
+  es: 'EUR',
+};
+
 interface LanguageContextValue {
   language: LanguageCode;
   setLanguage: (lang: LanguageCode) => void;
@@ -35,18 +42,23 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [currency, setCurrencyState] = useState<CurrencyCode>('SEK');
 
   useEffect(() => {
-    AsyncStorage.getItem(LANGUAGE_STORAGE_KEY)
-      .then((saved) => {
-        if (saved && LANGUAGE_OPTIONS.some((o) => o.code === saved)) {
-          setLanguageState(saved as LanguageCode);
-        }
-      })
-      .catch(() => {});
+    Promise.all([
+      AsyncStorage.getItem(LANGUAGE_STORAGE_KEY),
+      AsyncStorage.getItem(CURRENCY_STORAGE_KEY),
+    ])
+      .then(([savedLang, savedCurr]) => {
+        const validLang: LanguageCode =
+          savedLang && LANGUAGE_OPTIONS.some((o) => o.code === savedLang)
+            ? (savedLang as LanguageCode)
+            : 'sv';
+        setLanguageState(validLang);
 
-    AsyncStorage.getItem(CURRENCY_STORAGE_KEY)
-      .then((saved) => {
-        if (saved && CURRENCY_OPTIONS.some((o) => o.code === saved)) {
-          setCurrencyState(saved as CurrencyCode);
+        if (savedCurr && CURRENCY_OPTIONS.some((o) => o.code === savedCurr)) {
+          setCurrencyState(savedCurr as CurrencyCode);
+        } else {
+          const defaultCurr = DEFAULT_CURRENCY_BY_LANGUAGE[validLang];
+          setCurrencyState(defaultCurr);
+          AsyncStorage.setItem(CURRENCY_STORAGE_KEY, defaultCurr).catch(() => {});
         }
       })
       .catch(() => {});
@@ -55,6 +67,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const setLanguage = (lang: LanguageCode) => {
     setLanguageState(lang);
     AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang).catch(() => {});
+    const defaultCurr = DEFAULT_CURRENCY_BY_LANGUAGE[lang];
+    setCurrencyState(defaultCurr);
+    AsyncStorage.setItem(CURRENCY_STORAGE_KEY, defaultCurr).catch(() => {});
   };
 
   const setCurrency = (curr: CurrencyCode) => {

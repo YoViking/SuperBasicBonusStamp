@@ -29,6 +29,8 @@ import {
 import {
   normalizePurchaseTemplate,
   normalizeBonusTemplate,
+  normalizeRewardDescription,
+  normalizeStoreName,
   formatSmsMessage,
 } from '../services/smsFormatter';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
@@ -104,12 +106,14 @@ export default function BonusSettingsScreen() {
   const loadSettings = async () => {
     try {
       const data = await getStoreSettings();
-      setStoreName(data.storeName);
+      setStoreName(normalizeStoreName(data.storeName, language));
       setBonusType(data.bonusType);
       setPosMode(data.posMode);
       setThreshold(data.threshold.toString());
       setRewardAmount(data.rewardAmount.toString());
-      setRewardDescription(data.rewardDescription || t.pos.defaultRewardDesc);
+      setRewardDescription(
+        normalizeRewardDescription(data.rewardDescription, language)
+      );
       setPurchaseMessage(
         normalizePurchaseTemplate(data.purchaseMessage, data.bonusType, language)
       );
@@ -120,6 +124,17 @@ export default function BonusSettingsScreen() {
       console.error('Kunde inte läsa butiksinställningar', err);
     }
   };
+
+  useEffect(() => {
+    setStoreName((prev) => normalizeStoreName(prev, language));
+    setRewardDescription((prev) => normalizeRewardDescription(prev, language));
+    setPurchaseMessage((prev) =>
+      normalizePurchaseTemplate(prev, bonusType, language)
+    );
+    setBonusMessage((prev) =>
+      normalizeBonusTemplate(prev, bonusType, language)
+    );
+  }, [language]);
 
   useEffect(() => {
     if (isFocused) {

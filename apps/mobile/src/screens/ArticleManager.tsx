@@ -28,11 +28,12 @@ import {
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
+import { normalizeCategoryName } from '../services/smsFormatter';
 
 export default function ArticleManager() {
   const isFocused = useIsFocused();
   const { colors } = useTheme();
-  const { currencySymbol: currency, t } = useLanguage();
+  const { language, currencySymbol: currency, t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [sku, setSku] = useState('');
@@ -44,6 +45,10 @@ export default function ArticleManager() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  useEffect(() => {
+    setCategory((prev) => normalizeCategoryName(prev, language));
+  }, [language]);
 
   const handleBarcodeScanned = (scannedCode: string) => {
     setIsScannerOpen(false);
@@ -73,7 +78,9 @@ export default function ArticleManager() {
   const existingCategories = Array.from(
     new Set([
       t.articles.defaultCategory,
-      ...savedArticles.map((a) => a.category).filter(Boolean),
+      ...savedArticles
+        .map((a) => normalizeCategoryName(a.category, language))
+        .filter(Boolean),
     ])
   );
 
@@ -115,7 +122,7 @@ export default function ArticleManager() {
     setSku(item.sku || '');
     setName(item.name);
     setPrice(item.price.toString());
-    setCategory(item.category || t.articles.defaultCategory);
+    setCategory(normalizeCategoryName(item.category, language));
     setIsFormVisible(true);
   };
 
@@ -340,7 +347,8 @@ export default function ArticleManager() {
             <View style={styles.itemInfo}>
               <Text style={styles.itemTitle}>{item.name}</Text>
               <Text style={styles.itemSub}>
-                {t.articles.categoryPrefix} {item.category}
+                {t.articles.categoryPrefix}{' '}
+                {normalizeCategoryName(item.category, language)}
                 {item.sku ? `  •  SKU: ${item.sku}` : ''}
               </Text>
               <Text style={styles.itemPrice}>
