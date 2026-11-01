@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,12 +13,16 @@ import {
 } from 'react-native';
 import { supabase, isSupabaseConfigured } from '../db/supabase';
 import { setDemoModeActive, saveStoreSettings, getStoreSettings } from '../db/operations';
+import { useTheme, ThemeColors } from '../theme/ThemeContext';
 
 interface LoginScreenProps {
   onAuthenticated: () => void;
 }
 
 export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [isRegistering, setIsRegistering] = useState(false);
   const [storeName, setStoreName] = useState('');
   const [email, setEmail] = useState('');
@@ -128,7 +132,7 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                 placeholder="t.ex. Café Hörnan eller Salong Klipp"
                 value={storeName}
                 onChangeText={setStoreName}
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.placeholder}
               />
             </View>
           )}
@@ -143,7 +147,7 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
               autoCorrect={false}
               value={email}
               onChangeText={setEmail}
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.placeholder}
             />
           </View>
 
@@ -155,7 +159,7 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.placeholder}
             />
           </View>
 
@@ -206,144 +210,145 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f4f6f9',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-    maxWidth: 480,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  headerBox: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  logoBadge: {
-    width: 68,
-    height: 68,
-    borderRadius: 20,
-    backgroundColor: '#2563eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
-    shadowColor: '#2563eb',
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  logoEmoji: {
-    fontSize: 34,
-  },
-  appTitle: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  appSubtitle: {
-    fontSize: 15,
-    color: '#6b7280',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: '#f9fafb',
-    color: '#111827',
-  },
-  primaryButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 10,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  switchModeButton: {
-    marginTop: 18,
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  switchModeText: {
-    color: '#2563eb',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  infoBanner: {
-    marginTop: 20,
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1e40af',
-    marginBottom: 4,
-  },
-  infoText: {
-    fontSize: 13,
-    color: '#1e3a8a',
-    lineHeight: 19,
-  },
-  codeText: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontWeight: '700',
-  },
-  demoButton: {
-    marginTop: 16,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#9ca3af',
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-  },
-  demoButtonText: {
-    color: '#374151',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollContent: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      padding: 24,
+      maxWidth: 480,
+      width: '100%',
+      alignSelf: 'center',
+    },
+    headerBox: {
+      alignItems: 'center',
+      marginBottom: 28,
+    },
+    logoBadge: {
+      width: 68,
+      height: 68,
+      borderRadius: 20,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 14,
+      shadowColor: colors.primary,
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    logoEmoji: {
+      fontSize: 34,
+    },
+    appTitle: {
+      fontSize: 30,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    appSubtitle: {
+      fontSize: 15,
+      color: colors.textMuted,
+      marginTop: 6,
+      textAlign: 'center',
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 24,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: '#000',
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      elevation: 2,
+    },
+    cardTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 20,
+      textAlign: 'center',
+    },
+    inputGroup: {
+      marginBottom: 16,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 6,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      backgroundColor: colors.surfaceInput,
+      color: colors.text,
+    },
+    primaryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 15,
+      alignItems: 'center',
+      marginTop: 6,
+    },
+    primaryButtonText: {
+      color: '#ffffff',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    switchModeButton: {
+      marginTop: 18,
+      alignItems: 'center',
+      paddingVertical: 6,
+    },
+    switchModeText: {
+      color: colors.primaryText,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    infoBanner: {
+      marginTop: 20,
+      backgroundColor: colors.primarySoft,
+      borderRadius: 12,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.primarySoftBorder,
+    },
+    infoTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+      marginBottom: 4,
+    },
+    infoText: {
+      fontSize: 13,
+      color: colors.text,
+      lineHeight: 19,
+    },
+    codeText: {
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+      fontWeight: '700',
+    },
+    demoButton: {
+      marginTop: 16,
+      paddingVertical: 14,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: colors.borderInput,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+    },
+    demoButtonText: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  });

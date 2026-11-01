@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import {
   View,
@@ -29,9 +29,12 @@ import {
   DEFAULT_POINTS_BONUS_MESSAGE,
 } from '../services/smsFormatter';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
+import { useTheme, ThemeColors } from '../theme/ThemeContext';
 
 export default function PosScreen() {
   const isFocused = useIsFocused();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [phone, setPhone] = useState('');
@@ -365,7 +368,7 @@ export default function PosScreen() {
         <TextInput
           style={styles.phoneInput}
           placeholder="Kundens telefonnummer..."
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.placeholder}
           keyboardType="phone-pad"
           value={phone}
           onChangeText={(text) => {
@@ -541,7 +544,7 @@ export default function PosScreen() {
                 <TextInput
                   style={styles.quickAmountInput}
                   placeholder="0 kr"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.placeholder}
                   keyboardType="numeric"
                   value={quickAmount}
                   onChangeText={setQuickAmount}
@@ -560,10 +563,10 @@ export default function PosScreen() {
                   ))}
                   {quickAmount.length > 0 && (
                     <TouchableOpacity
-                      style={[styles.presetChip, { borderColor: '#ef4444' }]}
+                      style={[styles.presetChip, { borderColor: colors.danger }]}
                       onPress={() => setQuickAmount('')}
                     >
-                      <Text style={[styles.presetChipText, { color: '#ef4444' }]}>
+                      <Text style={[styles.presetChipText, { color: colors.dangerText }]}>
                         Rensa
                       </Text>
                     </TouchableOpacity>
@@ -769,415 +772,417 @@ export default function PosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f4f6f9' },
-  storeHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  storeNameText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  modePill: {
-    backgroundColor: '#e0e7ff',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  modePillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#1d4ed8',
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 10,
-  },
-  phoneInput: {
-    flex: 1,
-    fontSize: 20,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    color: '#111827',
-  },
-  searchButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderRadius: 10,
-    justifyContent: 'center',
-  },
-  searchButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  customerCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#dbeafe',
-  },
-  customerHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  customerBadgeText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1e40af',
-  },
-  gdprDeleteText: {
-    fontSize: 12,
-    color: '#dc2626',
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  stampSection: {
-    marginTop: 2,
-  },
-  progressSummaryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 10,
-  },
-  stampsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  stampCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
-    borderColor: '#cbd5e1',
-    backgroundColor: '#f8fafc',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stampCircleFilled: {
-    borderColor: '#f59e0b',
-    backgroundColor: '#fef3c7',
-  },
-  stampCircleText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#94a3b8',
-  },
-  stampCircleTextFilled: {
-    fontSize: 16,
-    color: '#d97706',
-  },
-  progressBarBg: {
-    height: 12,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#2563eb',
-    borderRadius: 6,
-  },
-  bonusBox: {
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-  },
-  bonusBoxTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#d97706',
-    marginBottom: 8,
-  },
-  redeemButton: {
-    backgroundColor: '#f59e0b',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  redeemButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  appliedBonusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  appliedBonusText: {
-    color: '#16a34a',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  undoBonusText: {
-    color: '#dc2626',
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-    fontSize: 14,
-  },
-  contentArea: {
-    flex: 1,
-  },
-  quickCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  quickCardTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 18,
-  },
-  stampStepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 28,
-    marginBottom: 20,
-  },
-  stepperBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#eff6ff',
-    borderWidth: 2,
-    borderColor: '#2563eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepperBtnText: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#2563eb',
-  },
-  stampCountDisplay: {
-    alignItems: 'center',
-    minWidth: 90,
-  },
-  stampCountNumber: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  stampCountLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '600',
-  },
-  quickAmountInput: {
-    width: '100%',
-    fontSize: 32,
-    fontWeight: '800',
-    textAlign: 'center',
-    borderWidth: 1.5,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: '#f9fafb',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  quickPresetsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'center',
-  },
-  presetChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-  },
-  presetChipActive: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-  },
-  presetChipText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#374151',
-  },
-  presetChipTextActive: {
-    color: '#ffffff',
-  },
-  scanButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: '#2563eb',
-    borderRadius: 10,
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  scanButtonText: {
-    color: '#2563eb',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  catTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    marginRight: 8,
-  },
-  catTabActive: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-  },
-  catTabText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#374151',
-  },
-  catTabTextActive: {
-    color: '#ffffff',
-  },
-  articleCard: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  articleName: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  articleCategory: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  articlePrice: { fontSize: 16, fontWeight: '800', color: '#2563eb' },
-  emptyArticlesBox: {
-    padding: 24,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    alignItems: 'center',
-  },
-  emptyArticlesText: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  footer: { paddingTop: 8 },
-  cartContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 10,
-    marginBottom: 8,
-    maxHeight: 135,
-  },
-  cartHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-    paddingBottom: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  cartHeaderTitle: { fontSize: 13, fontWeight: '700', color: '#374151' },
-  clearCartText: {
-    fontSize: 12,
-    color: '#dc2626',
-    fontWeight: '700',
-  },
-  cartScrollList: { maxHeight: 85 },
-  cartItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  cartItemName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  cartItemPrice: { fontSize: 12, color: '#6b7280' },
-  cartControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cartQtyBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#eff6ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  cartQtyBtnText: { fontSize: 15, fontWeight: '700', color: '#2563eb' },
-  cartQtyNumber: {
-    fontSize: 14,
-    fontWeight: '700',
-    minWidth: 18,
-    textAlign: 'center',
-  },
-  cartDeleteBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  cartDeleteBtnText: { fontSize: 14, color: '#dc2626', fontWeight: '700' },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  discountText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#d97706',
-  },
-  totalText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111827',
-    marginLeft: 'auto',
-  },
-  checkoutButton: {
-    backgroundColor: '#16a34a',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  checkoutButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
-  checkoutButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, padding: 16, backgroundColor: colors.background },
+    storeHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    storeNameText: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    modePill: {
+      backgroundColor: colors.modePillBg,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    modePillText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+    },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+      gap: 10,
+    },
+    phoneInput: {
+      flex: 1,
+      fontSize: 20,
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      backgroundColor: colors.surface,
+      color: colors.text,
+    },
+    searchButton: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 18,
+      paddingVertical: 14,
+      borderRadius: 10,
+      justifyContent: 'center',
+    },
+    searchButtonText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    customerCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: colors.primarySoftBorder,
+    },
+    customerHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    customerBadgeText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+    },
+    gdprDeleteText: {
+      fontSize: 12,
+      color: colors.dangerText,
+      fontWeight: '600',
+      textDecorationLine: 'underline',
+    },
+    stampSection: {
+      marginTop: 2,
+    },
+    progressSummaryText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 10,
+    },
+    stampsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    stampCircle: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      borderWidth: 2,
+      borderColor: colors.stampCircleBorder,
+      backgroundColor: colors.stampCircleBg,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    stampCircleFilled: {
+      borderColor: colors.warning,
+      backgroundColor: colors.warningSoft,
+    },
+    stampCircleText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.stampCircleText,
+    },
+    stampCircleTextFilled: {
+      fontSize: 16,
+      color: colors.warningText,
+    },
+    progressBarBg: {
+      height: 12,
+      backgroundColor: colors.border,
+      borderRadius: 6,
+      overflow: 'hidden',
+    },
+    progressBarFill: {
+      height: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: 6,
+    },
+    bonusBox: {
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSubtle,
+    },
+    bonusBoxTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.warningText,
+      marginBottom: 8,
+    },
+    redeemButton: {
+      backgroundColor: colors.warning,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    redeemButtonText: {
+      color: '#fff',
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    appliedBonusRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    appliedBonusText: {
+      color: colors.success,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    undoBonusText: {
+      color: colors.dangerText,
+      fontWeight: '700',
+      textDecorationLine: 'underline',
+      fontSize: 14,
+    },
+    contentArea: {
+      flex: 1,
+    },
+    quickCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 22,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      marginTop: 6,
+    },
+    quickCardTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 18,
+    },
+    stampStepperRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 28,
+      marginBottom: 20,
+    },
+    stepperBtn: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: colors.primarySoft,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    stepperBtnText: {
+      fontSize: 30,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+    },
+    stampCountDisplay: {
+      alignItems: 'center',
+      minWidth: 90,
+    },
+    stampCountNumber: {
+      fontSize: 42,
+      fontWeight: '800',
+      color: colors.text,
+    },
+    stampCountLabel: {
+      fontSize: 14,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    quickAmountInput: {
+      width: '100%',
+      fontSize: 32,
+      fontWeight: '800',
+      textAlign: 'center',
+      borderWidth: 1.5,
+      borderColor: colors.borderInput,
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      backgroundColor: colors.surfaceInput,
+      color: colors.text,
+      marginBottom: 16,
+    },
+    quickPresetsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      justifyContent: 'center',
+    },
+    presetChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 20,
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+    },
+    presetChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    presetChipText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    presetChipTextActive: {
+      color: '#ffffff',
+    },
+    scanButton: {
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 11,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    scanButtonText: {
+      color: colors.primaryText,
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    catTab: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 18,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      marginRight: 8,
+    },
+    catTabActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    catTabText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    catTabTextActive: {
+      color: '#ffffff',
+    },
+    articleCard: {
+      padding: 16,
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 8,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    articleName: { fontSize: 16, fontWeight: '700', color: colors.text },
+    articleCategory: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    articlePrice: { fontSize: 16, fontWeight: '800', color: colors.primaryText },
+    emptyArticlesBox: {
+      padding: 24,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+    },
+    emptyArticlesText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    footer: { paddingTop: 8 },
+    cartContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 10,
+      marginBottom: 8,
+      maxHeight: 135,
+    },
+    cartHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+      paddingBottom: 4,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    cartHeaderTitle: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
+    clearCartText: {
+      fontSize: 12,
+      color: colors.dangerText,
+      fontWeight: '700',
+    },
+    cartScrollList: { maxHeight: 85 },
+    cartItemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    cartItemName: { fontSize: 14, fontWeight: '600', color: colors.text },
+    cartItemPrice: { fontSize: 12, color: colors.textMuted },
+    cartControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    cartQtyBtn: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: colors.primarySoft,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.primarySoftBorder,
+    },
+    cartQtyBtnText: { fontSize: 15, fontWeight: '700', color: colors.primaryStrongText },
+    cartQtyNumber: {
+      fontSize: 14,
+      fontWeight: '700',
+      minWidth: 18,
+      textAlign: 'center',
+      color: colors.text,
+    },
+    cartDeleteBtn: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+    },
+    cartDeleteBtnText: { fontSize: 14, color: colors.dangerText, fontWeight: '700' },
+    totalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    discountText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.warningText,
+    },
+    totalText: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: colors.text,
+      marginLeft: 'auto',
+    },
+    checkoutButton: {
+      backgroundColor: colors.success,
+      paddingVertical: 16,
+      borderRadius: 12,
+      alignItems: 'center',
+    },
+    checkoutButtonDisabled: {
+      backgroundColor: colors.disabled,
+    },
+    checkoutButtonText: {
+      color: '#fff',
+      fontSize: 18,
+      fontWeight: '800',
+    },
+  });

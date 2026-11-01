@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,9 +18,13 @@ import {
   Article,
 } from '../db/operations';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
+import { useTheme, ThemeColors } from '../theme/ThemeContext';
 
 export default function ArticleManager() {
   const isFocused = useIsFocused();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [sku, setSku] = useState('');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -152,7 +156,7 @@ export default function ArticleManager() {
             placeholder="🔍 Sök artikel (namn, kategori, streckkod)..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor="#888"
+            placeholderTextColor={colors.placeholder}
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
@@ -199,6 +203,7 @@ export default function ArticleManager() {
           <TextInput
             style={styles.input}
             placeholder="t.ex. Cappuccino, Lunchbuffé eller Klippning"
+            placeholderTextColor={colors.placeholder}
             value={name}
             onChangeText={setName}
           />
@@ -207,6 +212,7 @@ export default function ArticleManager() {
           <TextInput
             style={styles.input}
             placeholder="t.ex. 45"
+            placeholderTextColor={colors.placeholder}
             value={price}
             onChangeText={setPrice}
             keyboardType="numeric"
@@ -216,6 +222,7 @@ export default function ArticleManager() {
           <TextInput
             style={styles.input}
             placeholder="t.ex. Kaffe, Bakverk, Behandlingar..."
+            placeholderTextColor={colors.placeholder}
             value={category}
             onChangeText={setCategory}
           />
@@ -253,6 +260,7 @@ export default function ArticleManager() {
             <TextInput
               style={[styles.input, styles.skuInput]}
               placeholder="Lämna tomt eller scanna streckkod"
+              placeholderTextColor={colors.placeholder}
               value={sku}
               onChangeText={setSku}
             />
@@ -267,7 +275,7 @@ export default function ArticleManager() {
           <TouchableOpacity
             style={[
               styles.button,
-              editingArticleId ? { backgroundColor: '#16a34a' } : null,
+              editingArticleId ? { backgroundColor: colors.success } : null,
             ]}
             onPress={handleSaveArticle}
           >
@@ -338,195 +346,196 @@ export default function ArticleManager() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 18, backgroundColor: '#f4f6f9' },
-  topActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 15,
-  },
-  searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    paddingHorizontal: 12,
-    height: 48,
-  },
-  searchInput: {
-    flex: 1,
-    height: '100%',
-    fontSize: 15,
-    color: '#111827',
-  },
-  clearSearchBtn: {
-    padding: 6,
-  },
-  clearSearchBtnText: {
-    fontSize: 16,
-    color: '#6b7280',
-    fontWeight: 'bold',
-  },
-  toggleFormButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 16,
-    height: 48,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  toggleFormButtonActive: {
-    backgroundColor: '#6b7280',
-  },
-  toggleFormButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  form: {
-    backgroundColor: '#fff',
-    padding: 18,
-    borderRadius: 14,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  label: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    backgroundColor: '#f9fafb',
-    color: '#111827',
-  },
-  chipScroll: {
-    marginBottom: 12,
-  },
-  categoryChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#2563eb',
-  },
-  categoryChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#4b5563',
-  },
-  categoryChipTextActive: {
-    color: '#2563eb',
-  },
-  skuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 14,
-  },
-  skuInput: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  skuScanBtn: {
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#2563eb',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  skuScanBtnText: {
-    color: '#2563eb',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  button: {
-    backgroundColor: '#2563eb',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  cancelButton: { marginTop: 10, padding: 8, alignItems: 'center' },
-  cancelButtonText: { color: '#dc2626', fontWeight: '700' },
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, padding: 18, backgroundColor: colors.background },
+    topActionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 15,
+    },
+    searchContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      paddingHorizontal: 12,
+      height: 48,
+    },
+    searchInput: {
+      flex: 1,
+      height: '100%',
+      fontSize: 15,
+      color: colors.text,
+    },
+    clearSearchBtn: {
+      padding: 6,
+    },
+    clearSearchBtnText: {
+      fontSize: 16,
+      color: colors.textMuted,
+      fontWeight: 'bold',
+    },
+    toggleFormButton: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 16,
+      height: 48,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    toggleFormButtonActive: {
+      backgroundColor: colors.textMuted,
+    },
+    toggleFormButtonText: {
+      color: '#fff',
+      fontWeight: '700',
+      fontSize: 15,
+    },
+    form: {
+      backgroundColor: colors.surface,
+      padding: 18,
+      borderRadius: 14,
+      marginBottom: 15,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    label: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    fieldLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 4,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 8,
+      marginBottom: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 15,
+      backgroundColor: colors.surfaceInput,
+      color: colors.text,
+    },
+    chipScroll: {
+      marginBottom: 12,
+    },
+    categoryChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      marginRight: 8,
+    },
+    categoryChipActive: {
+      backgroundColor: colors.primarySoft,
+      borderColor: colors.primary,
+    },
+    categoryChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    categoryChipTextActive: {
+      color: colors.primaryStrongText,
+    },
+    skuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14,
+    },
+    skuInput: {
+      flex: 1,
+      marginBottom: 0,
+    },
+    skuScanBtn: {
+      backgroundColor: colors.primarySoft,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    skuScanBtnText: {
+      color: colors.primaryStrongText,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      padding: 15,
+      borderRadius: 10,
+      alignItems: 'center',
+    },
+    buttonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    cancelButton: { marginTop: 10, padding: 8, alignItems: 'center' },
+    cancelButtonText: { color: colors.dangerText, fontWeight: '700' },
 
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  itemInfo: { flex: 1, marginRight: 10 },
-  itemTitle: { fontSize: 16, color: '#111827', fontWeight: '700' },
-  itemSub: { fontSize: 13, color: '#6b7280', marginTop: 3 },
-  itemPrice: { fontSize: 16, fontWeight: '700', color: '#2563eb', marginTop: 4 },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 15,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      marginBottom: 8,
+    },
+    itemInfo: { flex: 1, marginRight: 10 },
+    itemTitle: { fontSize: 16, color: colors.text, fontWeight: '700' },
+    itemSub: { fontSize: 13, color: colors.textMuted, marginTop: 3 },
+    itemPrice: { fontSize: 16, fontWeight: '700', color: colors.primaryText, marginTop: 4 },
 
-  actionButtons: { flexDirection: 'row', gap: 8 },
-  editButton: {
-    backgroundColor: '#fef3c7',
-    borderWidth: 1,
-    borderColor: '#f59e0b',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  editButtonText: { color: '#92400e', fontWeight: '700', fontSize: 13 },
-  deleteButton: {
-    backgroundColor: '#fee2e2',
-    borderWidth: 1,
-    borderColor: '#ef4444',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  deleteButtonText: { color: '#b91c1c', fontWeight: '700', fontSize: 13 },
+    actionButtons: { flexDirection: 'row', gap: 8 },
+    editButton: {
+      backgroundColor: colors.warningSoft,
+      borderWidth: 1,
+      borderColor: colors.warning,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+    },
+    editButtonText: { color: colors.warningText, fontWeight: '700', fontSize: 13 },
+    deleteButton: {
+      backgroundColor: colors.dangerSoft,
+      borderWidth: 1,
+      borderColor: colors.danger,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+    },
+    deleteButtonText: { color: colors.dangerText, fontWeight: '700', fontSize: 13 },
 
-  emptyContainer: {
-    padding: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginTop: 10,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-});
+    emptyContainer: {
+      padding: 30,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginTop: 10,
+    },
+    emptyText: {
+      fontSize: 15,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+  });

@@ -1,48 +1,66 @@
 import 'react-native-get-random-values';
 import 'fast-text-encoding';
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { ActivityIndicator, View, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { supabase, isSupabaseConfigured } from './src/db/supabase';
 import { isDemoModeActive, setDemoModeActive } from './src/db/operations';
+import { ThemeProvider, useTheme, ThemeColors } from './src/theme/ThemeContext';
 
 import PosScreen from './src/screens/PosScreen';
 import ArticleManager from './src/screens/ArticleManager';
 import BonusSettingsScreen from './src/screens/BonusSettingsScreen';
+import AppSettingsScreen from './src/screens/AppSettingsScreen';
 import LoginScreen from './src/screens/LoginScreen';
 
 const Tab = createBottomTabNavigator();
 const AdminTab = createMaterialTopTabNavigator();
 
-function AdminTabs() {
+function AdminTabs({ onLogout }: { onLogout: () => Promise<void> }) {
+  const { colors } = useTheme();
   return (
     <AdminTab.Navigator
       screenOptions={{
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        },
         tabBarLabelStyle: { fontSize: 14, fontWeight: 'bold' },
-        tabBarIndicatorStyle: { backgroundColor: '#2563eb', height: 3 },
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarIndicatorStyle: { backgroundColor: colors.primary, height: 3 },
+        tabBarActiveTintColor: colors.primaryText,
+        tabBarInactiveTintColor: colors.textMuted,
       }}
     >
       <AdminTab.Screen
         name="Bonus"
         component={BonusSettingsScreen}
-        options={{ title: 'Butik & Bonusregler' }}
+        options={{ title: 'Bonus & SMS' }}
       />
       <AdminTab.Screen
         name="Artiklar"
         component={ArticleManager}
-        options={{ title: 'Artiklar (Valfritt)' }}
+        options={{ title: 'Artiklar' }}
       />
+      <AdminTab.Screen
+        name="App"
+        options={{ title: 'App' }}
+      >
+        {() => <AppSettingsScreen onLogout={onLogout} />}
+      </AdminTab.Screen>
     </AdminTab.Navigator>
   );
 }
 
-export default function App() {
+function AppContent() {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -81,39 +99,57 @@ export default function App() {
     }
   }, [checkAuth]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await setDemoModeActive(false);
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
     }
     setIsAuthenticated(false);
-  };
+  }, []);
+
+  const navTheme = useMemo(() => {
+    const base = isDark ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: colors.primary,
+        background: colors.background,
+        card: colors.surface,
+        text: colors.text,
+        border: colors.border,
+      },
+    };
+  }, [isDark, colors]);
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaProvider>
+      <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         <LoginScreen onAuthenticated={checkAuth} />
-      </SafeAreaProvider>
+      </>
     );
   }
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <NavigationContainer theme={navTheme}>
         <Tab.Navigator
           screenOptions={{
             headerStyle: {
-              backgroundColor: '#ffffff',
+              backgroundColor: colors.surface,
               borderBottomWidth: 1,
-              borderBottomColor: '#e5e7eb',
+              borderBottomColor: colors.border,
               elevation: 0,
               shadowOpacity: 0,
             },
@@ -121,15 +157,10 @@ export default function App() {
             headerTitleStyle: {
               fontSize: 19,
               fontWeight: '700',
-              color: '#111827',
+              color: colors.text,
             },
-            headerRight: () => (
-              <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-                <Text style={styles.logoutBtnText}>Logga ut</Text>
-              </TouchableOpacity>
-            ),
-            tabBarActiveTintColor: '#2563eb',
-            tabBarInactiveTintColor: '#6b7280',
+            tabBarActiveTintColor: colors.primaryText,
+            tabBarInactiveTintColor: colors.textMuted,
             tabBarLabelPosition: 'beside-icon',
             tabBarItemStyle: {
               justifyContent: 'center',
@@ -142,9 +173,9 @@ export default function App() {
             },
             tabBarIcon: () => null,
             tabBarStyle: {
-              backgroundColor: '#ffffff',
+              backgroundColor: colors.surface,
               borderTopWidth: 1,
-              borderTopColor: '#e5e7eb',
+              borderTopColor: colors.border,
               elevation: 4,
               shadowOpacity: 0.08,
               height: 64,
@@ -162,34 +193,34 @@ export default function App() {
           />
           <Tab.Screen
             name="Admin"
-            component={AdminTabs}
             options={{
               title: 'Inställningar',
             }}
-          />
+          >
+            {() => <AdminTabs onLogout={handleLogout} />}
+          </Tab.Screen>
         </Tab.Navigator>
       </NavigationContainer>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f4f6f9',
-  },
-  logoutBtn: {
-    marginRight: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#f3f4f6',
-  },
-  logoutBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#4b5563',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+    },
+  });
