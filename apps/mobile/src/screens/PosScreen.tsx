@@ -37,6 +37,9 @@ import {
   formatSmsMessage,
   normalizePurchaseTemplate,
   normalizeBonusTemplate,
+  normalizeRewardDescription,
+  normalizeStoreName,
+  normalizeCategoryName,
 } from '../services/smsFormatter';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
@@ -92,7 +95,14 @@ export default function PosScreen() {
   const posMode = storeSettings?.posMode ?? 'QUICK';
   const threshold = Math.max(1, storeSettings?.threshold ?? (bonusType === 'STAMPS' ? 10 : 1000));
   const rewardAmount = storeSettings?.rewardAmount ?? (bonusType === 'STAMPS' ? 1 : 100);
-  const rewardDescription = storeSettings?.rewardDescription || t.pos.defaultRewardDesc;
+  const rewardDescription = normalizeRewardDescription(
+    storeSettings?.rewardDescription,
+    language
+  );
+  const displayStoreName = normalizeStoreName(
+    storeSettings?.storeName,
+    language
+  );
 
   const resetCustomerState = () => {
     setCustomerSearched(false);
@@ -233,13 +243,21 @@ export default function PosScreen() {
           language
         );
 
+    const normalizedStore = normalizeStoreName(
+      activeSettings.storeName,
+      language
+    );
+
     let msg = formatSmsMessage(templateToUse, {
       amount: addedVal,
       remaining: remainingAfter,
       reward: activeSettings.rewardAmount,
       threshold: activeThreshold,
-      storeName: activeSettings.storeName,
-      rewardDescription: activeSettings.rewardDescription,
+      storeName: normalizedStore,
+      rewardDescription: normalizeRewardDescription(
+        activeSettings.rewardDescription,
+        language
+      ),
       currentProgress: progressAfter,
       bonusType: activeSettings.bonusType,
       language,
@@ -247,7 +265,7 @@ export default function PosScreen() {
     });
 
     if (isNew) {
-      msg += t.pos.gdprSmsFooter(activeSettings.storeName);
+      msg += t.pos.gdprSmsFooter(normalizedStore);
     }
 
     const url = `sms:${number}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
@@ -339,7 +357,9 @@ export default function PosScreen() {
 
   // Kategorier & Toppsäljare för Artikelläge
   const uniqueCategories = Array.from(
-    new Set(availableArticles.map((a) => a.category || t.articles.defaultCategory))
+    new Set(
+      availableArticles.map((a) => normalizeCategoryName(a.category, language))
+    )
   );
 
   const topSellers = [...availableArticles]
@@ -353,7 +373,7 @@ export default function PosScreen() {
       : selectedCategory === 'TOP'
       ? topSellers
       : availableArticles.filter(
-          (a) => (a.category || t.articles.defaultCategory) === selectedCategory
+          (a) => normalizeCategoryName(a.category, language) === selectedCategory
         );
 
   // Beräkning av kundens nuvarande progress (efter ev. valda bonusar)
@@ -367,7 +387,7 @@ export default function PosScreen() {
       {/* BUTIKSNAMN HÖGST UPP */}
       <View style={styles.storeHeaderRow}>
         <Text style={styles.storeNameText}>
-          {storeSettings?.storeName || t.pos.defaultStoreName}
+          {displayStoreName}
         </Text>
       </View>
 
@@ -719,7 +739,9 @@ export default function PosScreen() {
                 >
                   <View>
                     <Text style={styles.articleName}>{item.name}</Text>
-                    <Text style={styles.articleCategory}>{item.category}</Text>
+                    <Text style={styles.articleCategory}>
+                      {normalizeCategoryName(item.category, language)}
+                    </Text>
                   </View>
                   <Text style={styles.articlePrice}>
                     +{item.price} {currency}
