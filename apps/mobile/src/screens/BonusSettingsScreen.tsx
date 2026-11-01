@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,9 +24,12 @@ import {
   DEFAULT_POINTS_BONUS_MESSAGE,
   formatSmsMessage,
 } from '../services/smsFormatter';
+import { useTheme, ThemeColors } from '../theme/ThemeContext';
 
 export default function BonusSettingsScreen() {
   const isFocused = useIsFocused();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [storeName, setStoreName] = useState('Min Butik');
   const [bonusType, setBonusType] = useState<BonusType>('STAMPS');
@@ -165,6 +168,7 @@ export default function BonusSettingsScreen() {
             value={storeName}
             onChangeText={setStoreName}
             placeholder="t.ex. Café Hörnan"
+            placeholderTextColor={colors.placeholder}
           />
 
           <Text style={styles.label}>Hur vill du använda kassan?</Text>
@@ -273,6 +277,7 @@ export default function BonusSettingsScreen() {
                 onChangeText={setThreshold}
                 keyboardType="numeric"
                 placeholder="t.ex. 10"
+                placeholderTextColor={colors.placeholder}
               />
 
               <Text style={styles.label}>
@@ -283,6 +288,7 @@ export default function BonusSettingsScreen() {
                 value={rewardDescription}
                 onChangeText={setRewardDescription}
                 placeholder="t.ex. 1 valfri kaffe / 1 gratis klippning"
+                placeholderTextColor={colors.placeholder}
               />
 
               {posMode === 'ARTICLES' && (
@@ -296,6 +302,7 @@ export default function BonusSettingsScreen() {
                     onChangeText={setRewardAmount}
                     keyboardType="numeric"
                     placeholder="t.ex. 45"
+                    placeholderTextColor={colors.placeholder}
                   />
                 </>
               )}
@@ -309,6 +316,7 @@ export default function BonusSettingsScreen() {
                 onChangeText={setThreshold}
                 keyboardType="numeric"
                 placeholder="t.ex. 1000"
+                placeholderTextColor={colors.placeholder}
               />
 
               <Text style={styles.label}>Bonus att ge i rabatt (kr):</Text>
@@ -318,6 +326,7 @@ export default function BonusSettingsScreen() {
                 onChangeText={setRewardAmount}
                 keyboardType="numeric"
                 placeholder="t.ex. 100"
+                placeholderTextColor={colors.placeholder}
               />
             </View>
           )}
@@ -345,6 +354,7 @@ export default function BonusSettingsScreen() {
             multiline
             numberOfLines={4}
             placeholder="Skriv SMS-mallen..."
+            placeholderTextColor={colors.placeholder}
           />
 
           <TouchableOpacity
@@ -380,6 +390,7 @@ export default function BonusSettingsScreen() {
             multiline
             numberOfLines={4}
             placeholder="Skriv SMS-mallen vid uppnådd bonus..."
+            placeholderTextColor={colors.placeholder}
           />
 
           <TouchableOpacity
@@ -409,143 +420,144 @@ export default function BonusSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f6f9', padding: 18 },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  sectionHeader: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  helperText: {
-    fontSize: 14,
-    color: '#4b5563',
-    lineHeight: 20,
-    marginBottom: 14,
-  },
-  boldText: {
-    fontWeight: '700',
-    color: '#111827',
-  },
-  label: {
-    fontSize: 14,
-    marginBottom: 6,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 10,
-    marginBottom: 16,
-    fontSize: 16,
-    padding: 12,
-    backgroundColor: '#f9fafb',
-    color: '#111827',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 8,
-  },
-  modeCard: {
-    flex: 1,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: '#f9fafb',
-    alignItems: 'center',
-  },
-  modeCardActive: {
-    borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
-  },
-  modeEmoji: {
-    fontSize: 26,
-    marginBottom: 6,
-  },
-  modeTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  modeTitleActive: {
-    color: '#1d4ed8',
-  },
-  modeDesc: {
-    fontSize: 12,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 10,
-    marginBottom: 12,
-    fontSize: 15,
-    padding: 12,
-    backgroundColor: '#f9fafb',
-    minHeight: 85,
-    textAlignVertical: 'top',
-    lineHeight: 22,
-    color: '#111827',
-  },
-  resetButton: {
-    alignSelf: 'flex-start',
-    marginBottom: 14,
-  },
-  resetButtonText: {
-    color: '#2563eb',
-    fontSize: 14,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  previewBox: {
-    backgroundColor: '#eff6ff',
-    borderLeftWidth: 4,
-    borderLeftColor: '#2563eb',
-    padding: 14,
-    borderRadius: 8,
-  },
-  previewTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1e40af',
-    marginBottom: 4,
-  },
-  previewText: {
-    fontSize: 14,
-    color: '#1f2937',
-    lineHeight: 20,
-  },
-  saveButton: {
-    backgroundColor: '#16a34a',
-    padding: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#16a34a',
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background, padding: 18 },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      padding: 18,
+      marginBottom: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: '#000',
+      shadowOpacity: 0.03,
+      shadowRadius: 4,
+      elevation: 1,
+    },
+    sectionHeader: {
+      fontSize: 19,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    helperText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      lineHeight: 20,
+      marginBottom: 14,
+    },
+    boldText: {
+      fontWeight: '700',
+      color: colors.text,
+    },
+    label: {
+      fontSize: 14,
+      marginBottom: 6,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 10,
+      marginBottom: 16,
+      fontSize: 16,
+      padding: 12,
+      backgroundColor: colors.surfaceInput,
+      color: colors.text,
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 8,
+    },
+    modeCard: {
+      flex: 1,
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderRadius: 12,
+      padding: 14,
+      backgroundColor: colors.surfaceInput,
+      alignItems: 'center',
+    },
+    modeCardActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primarySoft,
+    },
+    modeEmoji: {
+      fontSize: 26,
+      marginBottom: 6,
+    },
+    modeTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginBottom: 4,
+    },
+    modeTitleActive: {
+      color: colors.primaryStrongText,
+    },
+    modeDesc: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 16,
+    },
+    textArea: {
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 10,
+      marginBottom: 12,
+      fontSize: 15,
+      padding: 12,
+      backgroundColor: colors.surfaceInput,
+      minHeight: 85,
+      textAlignVertical: 'top',
+      lineHeight: 22,
+      color: colors.text,
+    },
+    resetButton: {
+      alignSelf: 'flex-start',
+      marginBottom: 14,
+    },
+    resetButtonText: {
+      color: colors.primaryText,
+      fontSize: 14,
+      fontWeight: '600',
+      textDecorationLine: 'underline',
+    },
+    previewBox: {
+      backgroundColor: colors.primarySoft,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.primary,
+      padding: 14,
+      borderRadius: 8,
+    },
+    previewTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+      marginBottom: 4,
+    },
+    previewText: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
+    },
+    saveButton: {
+      backgroundColor: colors.success,
+      padding: 18,
+      borderRadius: 12,
+      alignItems: 'center',
+      shadowColor: colors.success,
+      shadowOpacity: 0.25,
+      shadowRadius: 5,
+      elevation: 3,
+    },
+    saveButtonText: {
+      color: '#fff',
+      fontSize: 18,
+      fontWeight: '700',
+    },
+  });
