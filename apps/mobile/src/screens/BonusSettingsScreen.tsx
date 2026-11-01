@@ -18,6 +18,7 @@ import {
   Coins,
   Smartphone,
   PartyPopper,
+  Plus,
 } from 'lucide-react-native';
 import {
   getStoreSettings,
@@ -49,6 +50,58 @@ export default function BonusSettingsScreen() {
   const [rewardDescription, setRewardDescription] = useState('1 gratis vara');
   const [purchaseMessage, setPurchaseMessage] = useState(DEFAULT_STAMP_PURCHASE_MESSAGE);
   const [bonusMessage, setBonusMessage] = useState(DEFAULT_STAMP_BONUS_MESSAGE);
+  const [purchaseSelection, setPurchaseSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+  const [bonusSelection, setBonusSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+
+  const smsQuickTags = useMemo(
+    () => [
+      { label: 'Butikens namn', tag: '{butik}' },
+      { label: 'Kundens saldo', tag: '{saldo}' },
+      { label: 'Kvar till bonus', tag: '{kvar_till_bonus}' },
+      { label: 'Bonusen', tag: '{bonus}' },
+      {
+        label: bonusType === 'STAMPS' ? 'Nya stämplar' : 'Köpesumma',
+        tag: bonusType === 'STAMPS' ? '{stämplar}' : '{köpesumma}',
+      },
+    ],
+    [bonusType]
+  );
+
+  const insertTag = (
+    tag: string,
+    currentText: string,
+    setText: (val: string) => void,
+    selection: { start: number; end: number } | null,
+    setSelection: (sel: { start: number; end: number } | null) => void
+  ) => {
+    if (selection && selection.start <= currentText.length) {
+      const before = currentText.slice(0, selection.start);
+      const after = currentText.slice(selection.end);
+      const needsSpaceBefore =
+        before.length > 0 && !/\s$/.test(before) && !/[([{]$/.test(before);
+      const needsSpaceAfter =
+        after.length > 0 && !/^\s/.test(after) && !/^[.,!?)\]}]/.test(after);
+      const inserted = `${needsSpaceBefore ? ' ' : ''}${tag}${
+        needsSpaceAfter ? ' ' : ''
+      }`;
+      const nextText = `${before}${inserted}${after}`;
+      const nextCursor = before.length + inserted.length;
+      setText(nextText);
+      setSelection({ start: nextCursor, end: nextCursor });
+    } else {
+      const needsSpace =
+        currentText.length > 0 && !/\s$/.test(currentText);
+      const nextText = `${currentText}${needsSpace ? ' ' : ''}${tag}`;
+      setText(nextText);
+      setSelection({ start: nextText.length, end: nextText.length });
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -376,21 +429,37 @@ export default function BonusSettingsScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionHeader}>3. SMS-mall vid vanligt besök</Text>
           <Text style={styles.helperText}>
-            Tillgängliga taggar:{' '}
-            <Text style={styles.boldText}>&#123;butik&#125;</Text>,{' '}
-            <Text style={styles.boldText}>&#123;saldo&#125;</Text>,{' '}
-            <Text style={styles.boldText}>&#123;kvar_till_bonus&#125;</Text>,{' '}
-            <Text style={styles.boldText}>&#123;bonus&#125;</Text> och{' '}
-            <Text style={styles.boldText}>
-              {bonusType === 'STAMPS' ? '{stämplar}' : '{köpesumma}'}
-            </Text>
-            .
+            Anpassa meddelandet som skickas till kunden. Tryck på en knapp nedan för att lägga till automatisk uppgift i texten:
           </Text>
+
+          <View style={styles.tagChipsRow}>
+            {smsQuickTags.map((item) => (
+              <TouchableOpacity
+                key={item.tag}
+                style={styles.tagChip}
+                onPress={() =>
+                  insertTag(
+                    item.tag,
+                    purchaseMessage,
+                    setPurchaseMessage,
+                    purchaseSelection,
+                    setPurchaseSelection
+                  )
+                }
+              >
+                <Plus size={13} color={colors.primaryStrongText} />
+                <Text style={styles.tagChipText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           <TextInput
             style={styles.textArea}
             value={purchaseMessage}
             onChangeText={setPurchaseMessage}
+            onSelectionChange={(e) =>
+              setPurchaseSelection(e.nativeEvent.selection)
+            }
             multiline
             numberOfLines={4}
             placeholder="Skriv SMS-mallen..."
@@ -423,13 +492,37 @@ export default function BonusSettingsScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionHeader}>4. SMS-mall vid uppnådd bonus</Text>
           <Text style={styles.helperText}>
-            Skickas när kunden fyller sitt kort eller når en ny bonusnivå.
+            Skickas när kunden fyller sitt kort eller når en ny bonusnivå. Tryck på en knapp för att infoga uppgift:
           </Text>
+
+          <View style={styles.tagChipsRow}>
+            {smsQuickTags.map((item) => (
+              <TouchableOpacity
+                key={item.tag}
+                style={styles.tagChip}
+                onPress={() =>
+                  insertTag(
+                    item.tag,
+                    bonusMessage,
+                    setBonusMessage,
+                    bonusSelection,
+                    setBonusSelection
+                  )
+                }
+              >
+                <Plus size={13} color={colors.primaryStrongText} />
+                <Text style={styles.tagChipText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           <TextInput
             style={styles.textArea}
             value={bonusMessage}
             onChangeText={setBonusMessage}
+            onSelectionChange={(e) =>
+              setBonusSelection(e.nativeEvent.selection)
+            }
             multiline
             numberOfLines={4}
             placeholder="Skriv SMS-mallen vid uppnådd bonus..."
@@ -561,6 +654,28 @@ const createStyles = (colors: ThemeColors) =>
       textAlignVertical: 'top',
       lineHeight: 22,
       color: colors.text,
+    },
+    tagChipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 12,
+    },
+    tagChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+      borderRadius: 18,
+      backgroundColor: colors.primarySoft,
+      borderWidth: 1,
+      borderColor: colors.primarySoftBorder,
+    },
+    tagChipText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
     },
     resetButton: {
       alignSelf: 'flex-start',
