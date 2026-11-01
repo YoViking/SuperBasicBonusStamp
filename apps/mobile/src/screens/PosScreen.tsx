@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import {
   View,
@@ -10,41 +10,143 @@ import {
   Alert,
   Platform,
   Linking,
-  ScrollView
+  ScrollView,
 } from 'react-native';
-import { db } from '../db/client';
-import { articles, bonusSettings, customers, salesItems } from '../db/schema';
-import { processPurchase, getCustomer } from '../db/operations';
-import { InferSelectModel, eq, desc, inArray, count } from 'drizzle-orm';
+import {
+  Article,
+  StoreSettings,
+  getStoreSettings,
+  getArticles,
+  getCustomer,
+  deleteCustomerById,
+  processPurchase,
+} from '../db/operations';
 import {
   formatSmsMessage,
-  DEFAULT_PURCHASE_MESSAGE,
-  DEFAULT_BONUS_MESSAGE,
+  DEFAULT_STAMP_PURCHASE_MESSAGE,
+  DEFAULT_STAMP_BONUS_MESSAGE,
+  DEFAULT_POINTS_PURCHASE_MESSAGE,
+  DEFAULT_POINTS_BONUS_MESSAGE,
 } from '../services/smsFormatter';
 import BarcodeScannerModal from '../components/BarcodeScannerModal';
 
-type Article = InferSelectModel<typeof articles>;
-
 export default function PosScreen() {
   const isFocused = useIsFocused();
+
+  const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [phone, setPhone] = useState('');
   const [availableArticles, setAvailableArticles] = useState<Article[]>([]);
   const [cart, setCart] = useState<Article[]>([]);
-  const [topSellers, setTopSellers] = useState<Article[]>([]);
-  const [customerStatus, setCustomerStatus] = useState<string | null>(null);
-  const [availableBonuses, setAvailableBonuses] = useState<number>(0);
-  const [rewardAmount, setRewardAmount] = useState<number>(0);
-  const [appliedBonusesCount, setAppliedBonusesCount] = useState<number>(0);
+
+  // Snabbläge-states
+  const [quickStamps, setQuickStamps] = useState<number>(1);
+  const [quickAmount, setQuickAmount] = useState<string>('');
+
+  // Kund-states
+  const [customerSearched, setCustomerSearched] = useState<boolean>(false);
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [isNewCustomer, setIsNewCustomer] = useState<boolean>(false);
-  const [customerId, setCustomerId] = useState<number | null>(null);
+  const [currentBalance, setCurrentBalance] = useState<number>(0);
+  const [availableBonuses, setAvailableBonuses] = useState<number>(0);
+  const [appliedBonusesCount, setAppliedBonusesCount] = useState<number>(0);
 
-  // Navigation states
-  const [currentView, setCurrentView] = useState<'HOME' | 'BRAND_SELECTION' | 'ARTICLE_SELECTION'>('HOME');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
-
-  // Barcode scanner state
+  // Artikelläge-states
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALLA');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [settings, articlesData] = await Promise.all([
+        getStoreSettings(),
+        getArticles(),
+      ]);
+      setStoreSettings(settings);
+      setAvailableArticles(articlesData);
+    } catch (err) {
+      console.error('Kunde inte ladda kassadata:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFocused) {
+      loadData();
+    }
+  }, [isFocused, loadData]);
+
+  const bonusType = storeSettings?.bonusType ?? 'STAMPS';
+  const posMode = storeSettings?.posMode ?? 'QUICK';
+  const threshold = Math.max(1, storeSettings?.threshold ?? (bonusType === 'STAMPS' ? 10 : 1000));
+  const rewardAmount = storeSettings?.rewardAmount ?? (bonusType === 'STAMPS' ? 1 : 100);
+  const rewardDescription = storeSettings?.rewardDescription || '1 gratis vara';
+
+  const resetCustomerState = () => {
+    setCustomerSearched(false);
+    setCustomerId(null);
+    setIsNewCustomer(false);
+    setCurrentBalance(0);
+    setAvailableBonuses(0);
+    setAppliedBonusesCount(0);
+  };
+
+  const resetAllAfterPurchase = () => {
+    setCart([]);
+    setPhone('');
+    setQuickStamps(1);
+    setQuickAmount('');
+    resetCustomerState();
+  };
+
+  const searchCustomer = async () => {
+    if (!phone.trim()) {
+      Alert.alert('Ange telefonnummer', 'Skriv in kundens telefonnummer först.');
+      return;
+    }
+    try {
+      const customer = await getCustomer(phone.trim());
+      setCustomerSearched(true);
+
+      if (!customer) {
+        setCustomerId(null);
+        setIsNewCustomer(true);
+        setCurrentBalance(0);
+        setAvailableBonuses(0);
+        setAppliedBonusesCount(0);
+      } else {
+        setCustomerId(customer.id);
+        setIsNewCustomer(customer.currentBalance === 0 && customer.totalSpent === 0);
+        setCurrentBalance(customer.currentBalance);
+        const bonusesFound = Math.floor(customer.currentBalance / threshold);
+        setAvailableBonuses(bonusesFound);
+        setAppliedBonusesCount(0);
+      }
+    } catch (error: any) {
+      Alert.alert('Fel vid sökning', error.message);
+    }
+  };
+
+  const handleDeleteCustomer = () => {
+    if (!customerId) return;
+    Alert.alert(
+      'Radera kund (GDPR)',
+      'Är du säker på att du vill radera kunden och alla sparade stämplar/poäng? Detta kan inte ångras.',
+      [
+        { text: 'Avbryt', style: 'cancel' },
+        {
+          text: 'Ja, ta bort',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteCustomerById(customerId);
+              setPhone('');
+              resetCustomerState();
+            } catch (error: any) {
+              Alert.alert('Fel', 'Kunde inte radera kunden: ' + error.message);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleBarcodeScanned = (scannedCode: string) => {
     setIsScannerOpen(false);
@@ -56,217 +158,161 @@ export default function PosScreen() {
     if (found) {
       setCart((prev) => [...prev, found]);
       Alert.alert(
-        "Vara tillagd!",
+        'Vara tillagd!',
         `${found.name} (${found.price} kr) lades till i varukorgen.`
       );
     } else {
       Alert.alert(
-        "Vara hittades inte",
-        `Ingen artikel med streckkod/SKU "${scannedCode}" hittades i registret.\n\nTips: Koppla streckkoden till artikeln under fliken Admin > Hantera Artiklar.`
+        'Vara hittades inte',
+        `Ingen artikel med streckkod/SKU "${scannedCode}" hittades.\n\nTips: Koppla streckkoden under Inställningar > Artiklar.`
       );
     }
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      const data = await db.select().from(articles);
-      setAvailableArticles(data);
+  // Beräkna vad som läggs till vid köp
+  const subTotalKr = cart.reduce((sum, item) => sum + item.price, 0);
+  const quickAmountNum = parseFloat(quickAmount.replace(',', '.')) || 0;
 
-      const topSales = await db.select({
-        articleId: salesItems.articleId,
-        salesCount: count()
-      })
-      .from(salesItems)
-      .groupBy(salesItems.articleId)
-      .orderBy(desc(count()))
-      .limit(4);
+  const rawAddedValue =
+    posMode === 'QUICK'
+      ? bonusType === 'STAMPS'
+        ? quickStamps
+        : quickAmountNum
+      : bonusType === 'STAMPS'
+      ? cart.length
+      : subTotalKr;
 
-      if (topSales.length > 0) {
-        const topArticleIds = topSales.map(s => s.articleId);
-        const topArticlesData = await db.select().from(articles).where(inArray(articles.id, topArticleIds));
-        
-        const sortedTopArticles = topSales.map(s => topArticlesData.find(a => a.id === s.articleId)).filter(Boolean) as Article[];
-        setTopSellers(sortedTopArticles);
-      } else {
-        setTopSellers([]);
-      }
-    };
-    if (isFocused) {
-      loadData();
+  const totalToPayKr =
+    posMode === 'ARTICLES'
+      ? Math.max(0, subTotalKr - appliedBonusesCount * rewardAmount)
+      : Math.max(0, quickAmountNum - appliedBonusesCount * rewardAmount);
+
+  const canCheckout =
+    Boolean(phone.trim()) &&
+    (rawAddedValue > 0 || appliedBonusesCount > 0);
+
+  const sendSms = (
+    number: string,
+    addedVal: number,
+    bonusEarned: boolean,
+    isNew: boolean,
+    newBalanceAfter: number,
+    activeSettings: StoreSettings
+  ) => {
+    const activeThreshold = Math.max(1, activeSettings.threshold);
+    const progressAfter = newBalanceAfter % activeThreshold;
+    const remainingAfter = activeThreshold - progressAfter;
+
+    const defaultPurchase =
+      activeSettings.bonusType === 'STAMPS'
+        ? DEFAULT_STAMP_PURCHASE_MESSAGE
+        : DEFAULT_POINTS_PURCHASE_MESSAGE;
+    const defaultBonus =
+      activeSettings.bonusType === 'STAMPS'
+        ? DEFAULT_STAMP_BONUS_MESSAGE
+        : DEFAULT_POINTS_BONUS_MESSAGE;
+
+    const templateToUse = bonusEarned
+      ? activeSettings.bonusMessage?.trim() || defaultBonus
+      : activeSettings.purchaseMessage?.trim() || defaultPurchase;
+
+    let msg = formatSmsMessage(templateToUse, {
+      amount: addedVal,
+      remaining: remainingAfter,
+      reward: activeSettings.rewardAmount,
+      threshold: activeThreshold,
+      storeName: activeSettings.storeName,
+      rewardDescription: activeSettings.rewardDescription,
+      currentProgress: progressAfter,
+      bonusType: activeSettings.bonusType,
+    });
+
+    if (isNew) {
+      msg += `\n\nInfo: Vi sparar ditt nummer för bonussystemet hos ${activeSettings.storeName}. Svara STOPP om du vill gå ur.`;
     }
-  }, [isFocused]);
 
-  const subTotal = cart.reduce((sum, item) => sum + item.price, 0);
-  const total = Math.max(0, subTotal - (appliedBonusesCount * rewardAmount));
-
-  const searchCustomer = async () => {
-    if (!phone) {
-      Alert.alert("Ange telefonnummer", "Vänligen ange ett telefonnummer att söka på först.");
-      return;
-    }
-    try {
-      const config = await db.select().from(bonusSettings).limit(1);
-      const threshold = config.length > 0 ? config[0].threshold : 1000;
-      const rewardAmountValue = config.length > 0 ? config[0].rewardAmount : 100;
-
-      const customer = await getCustomer(phone);
-      setCustomerId(customer ? customer.id : null);
-
-      if (!customer || customer.currentBalance === 0) {
-        setIsNewCustomer(true);
-        setCustomerStatus(`Ny kund. ${threshold} kr kvar till nästa bonus.`);
-        setAvailableBonuses(0);
-        setAppliedBonusesCount(0);
-      } else {
-        setIsNewCustomer(false);
-        const currentBalance = customer.currentBalance;
-        const availableBonusesFound = Math.floor(currentBalance / threshold);
-        const currentProgress = currentBalance % threshold;
-        const remaining = threshold - currentProgress;
-
-        if (availableBonusesFound > 0) {
-          const totalReward = rewardAmountValue * availableBonusesFound;
-          setAvailableBonuses(availableBonusesFound);
-          setRewardAmount(rewardAmountValue);
-          setCustomerStatus(`Kund hittad! Kunden har ${availableBonusesFound} st bonus(ar) på ${totalReward} kr att utnyttja. Dessutom är det bara ${remaining} kr kvar till nästa bonus!`);
-        } else {
-          setAvailableBonuses(0);
-          setCustomerStatus(`Kund hittad! Den här kunden har just nu ${remaining} kr kvar till nästa bonus.`);
-        }
-        setAppliedBonusesCount(0);
-      }
-    } catch (error: any) {
-      Alert.alert("Fel vid sökning", error.message);
-    }
-  };
-
-  const handleDeleteCustomer = () => {
-    if (!customerId) return;
-    Alert.alert(
-      "Radera kund",
-      "Är du säker på att du vill radera kunden? Detta raderar även alla intjänade bonusar och kan inte ångras.",
-      [
-        { text: "Avbryt", style: "cancel" },
-        {
-          text: "Ja, ta bort",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await db.delete(customers).where(eq(customers.id, customerId));
-              setPhone('');
-              setCustomerStatus(null);
-              setAvailableBonuses(0);
-              setAppliedBonusesCount(0);
-              setCustomerId(null);
-              setIsNewCustomer(false);
-            } catch (error: any) {
-              Alert.alert("Fel", "Kunde inte radera kunden: " + error.message);
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const sendSms = async (number: string, amount: number, bonusEarned: boolean, isNew: boolean, remaining: number) => {
-    try {
-      const config = await db.query.bonusSettings.findFirst({ where: eq(bonusSettings.id, 1) });
-      const threshold = config?.threshold ?? 1000;
-      const reward = config?.rewardAmount ?? 100;
-
-      const templateToUse = bonusEarned
-        ? (config?.bonusMessage && config.bonusMessage.trim().length > 0 ? config.bonusMessage.trim() : DEFAULT_BONUS_MESSAGE)
-        : (config?.purchaseMessage && config.purchaseMessage.trim().length > 0 ? config.purchaseMessage.trim() : DEFAULT_PURCHASE_MESSAGE);
-
-      let msg = formatSmsMessage(templateToUse, {
-        amount,
-        remaining,
-        reward,
-        threshold,
-      });
-
-      if (isNew) {
-        msg += `\n\nInfo: Vi sparar ditt nummer för bonussystemet. Dina data delas aldrig. Svara STOPP om du vill gå ur.`;
-      }
-
-      const url = `sms:${number}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
-      Linking.openURL(url);
-    } catch (error) {
-      console.error("Fel vid skapande av SMS:", error);
-      const fallbackTemplate = bonusEarned ? DEFAULT_BONUS_MESSAGE : DEFAULT_PURCHASE_MESSAGE;
-      let msg = formatSmsMessage(fallbackTemplate, { amount, remaining, reward: 100, threshold: 1000 });
-      if (isNew) {
-        msg += `\n\nInfo: Vi sparar ditt nummer för bonussystemet. Dina data delas aldrig. Svara STOPP om du vill gå ur.`;
-      }
-      const url = `sms:${number}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
-      Linking.openURL(url);
-    }
+    const url = `sms:${number}${Platform.OS === 'ios' ? '&' : '?'}body=${encodeURIComponent(msg)}`;
+    Linking.openURL(url);
   };
 
   const handleComplete = async () => {
     try {
-      if (!phone || cart.length === 0) {
-        Alert.alert("Info saknas", "Mata in telefonnummer och välj artiklar.");
+      if (!phone.trim()) {
+        Alert.alert('Telefonnummer saknas', 'Ange kundens telefonnummer först.');
         return;
       }
 
-      const { bonusEarned, newBalance, threshold } = await processPurchase(phone, subTotal, cart, appliedBonusesCount);
+      if (rawAddedValue <= 0 && appliedBonusesCount === 0) {
+        Alert.alert(
+          'Inget att registrera',
+          posMode === 'ARTICLES'
+            ? 'Välj minst en artikel eller lös in en bonus.'
+            : bonusType === 'STAMPS'
+            ? 'Välj minst 1 stämpel eller lös in en bonus.'
+            : 'Ange köpesumma eller lös in en bonus.'
+        );
+        return;
+      }
 
-      const remainingAfterPurchase = threshold - (newBalance % threshold);
+      const {
+        bonusEarned,
+        newBalance,
+        actualAdded,
+        storeSettings: updatedSettings,
+      } = await processPurchase(
+        phone.trim(),
+        rawAddedValue,
+        posMode === 'ARTICLES' ? cart : [],
+        appliedBonusesCount
+      );
 
-      const title = bonusEarned ? "🎉 Bonus Uppnådd! 🎉" : "Köp registrerat";
+      const title = bonusEarned
+        ? '🎉 Ny Bonus Uppnådd! 🎉'
+        : 'Registrerat!';
       const message = bonusEarned
-        ? "Kunden har precis nått en ny bonusnivå!\n\nVill du skicka ett bekräftelse-SMS till kunden?"
-        : "Vill du skicka ett bekräftelse-SMS till kunden?";
+        ? 'Kunden har nått en ny bonusnivå!\n\nVill du skicka ett SMS till kunden?'
+        : 'Köpet/stämpeln har sparats.\n\nVill du skicka ett bekräftelse-SMS till kunden?';
 
       Alert.alert(title, message, [
         {
-          text: "Nej",
-          style: "cancel",
-          onPress: () => {
-            setCart([]);
-            setPhone('');
-            setCustomerStatus(null);
-            setAvailableBonuses(0);
-            setAppliedBonusesCount(0);
-            setCustomerId(null);
-            setIsNewCustomer(false);
-            setCurrentView('HOME');
-          }
+          text: 'Nej, klart',
+          style: 'cancel',
+          onPress: resetAllAfterPurchase,
         },
         {
-          text: "Ja, öppna SMS",
+          text: 'Ja, öppna SMS',
           onPress: () => {
-            sendSms(phone, total, bonusEarned, isNewCustomer, remainingAfterPurchase);
-            setCart([]);
-            setPhone('');
-            setCustomerStatus(null);
-            setAvailableBonuses(0);
-            setAppliedBonusesCount(0);
-            setCustomerId(null);
-            setIsNewCustomer(false);
-            setCurrentView('HOME');
-          }
-        }
+            sendSms(
+              phone.trim(),
+              actualAdded,
+              bonusEarned,
+              isNewCustomer,
+              newBalance,
+              updatedSettings
+            );
+            resetAllAfterPurchase();
+          },
+        },
       ]);
     } catch (error: any) {
-      Alert.alert("Ett fel uppstod", error.message);
+      Alert.alert('Ett fel uppstod', error.message);
     }
   };
 
-  const handleRemoveOne = (articleId: number) => {
-    const lastIndex = cart.map(a => a.id).lastIndexOf(articleId);
+  // Varukorgs-hjälpare
+  const handleRemoveOne = (articleId: string) => {
+    const lastIndex = cart.map((a) => a.id).lastIndexOf(articleId);
     if (lastIndex !== -1) {
-      setCart(prev => prev.filter((_, idx) => idx !== lastIndex));
+      setCart((prev) => prev.filter((_, idx) => idx !== lastIndex));
     }
   };
 
-  const handleRemoveAllOfArticle = (articleId: number) => {
-    setCart(prev => prev.filter(a => a.id !== articleId));
+  const handleRemoveAllOfArticle = (articleId: string) => {
+    setCart((prev) => prev.filter((a) => a.id !== articleId));
   };
 
   const groupedCart = cart.reduce((acc, item) => {
-    const existing = acc.find(x => x.article.id === item.id);
+    const existing = acc.find((x) => x.article.id === item.id);
     if (existing) {
       existing.quantity += 1;
       existing.totalPrice += item.price;
@@ -276,59 +322,55 @@ export default function PosScreen() {
     return acc;
   }, [] as { article: Article; quantity: number; totalPrice: number }[]);
 
-  const handleCategoryPress = (category: string) => {
-    setSelectedCategory(category);
-    setCurrentView('BRAND_SELECTION');
-  };
+  // Kategorier & Toppsäljare för Artikelläge
+  const uniqueCategories = Array.from(
+    new Set(availableArticles.map((a) => a.category || 'Allmänt'))
+  );
 
-  const handleBrandPress = (brand: string) => {
-    setSelectedBrand(brand);
-    setCurrentView('ARTICLE_SELECTION');
-  };
+  const topSellers = [...availableArticles]
+    .filter((a) => (a.salesCount || 0) > 0)
+    .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0))
+    .slice(0, 4);
 
-  const categoryArticles = availableArticles.filter(item => {
-    if (selectedCategory === 'Färgfilm') return item.category === 'COLOR';
-    if (selectedCategory === 'Svartvit film') return item.category === 'BW';
-    return true;
-  });
+  const displayedArticles =
+    selectedCategory === 'ALLA'
+      ? availableArticles
+      : selectedCategory === 'TOP'
+      ? topSellers
+      : availableArticles.filter((a) => (a.category || 'Allmänt') === selectedCategory);
 
-  const uniqueBrands = Array.from(new Set(categoryArticles.map(item => item.name.split(' ')[0]))).sort();
-
-  const brandArticles = categoryArticles.filter(item => item.name.split(' ')[0] === selectedBrand).sort((a, b) => a.name.localeCompare(b.name));
-
-  const renderArticle = ({ item }: { item: Article }) => {
-    const brand = item.name.split(' ')[0];
-    return (
-      <TouchableOpacity
-        style={styles.articleCard}
-        onPress={() => setCart([...cart, item])}
-      >
-        <View>
-          <Text style={styles.articleName}>{item.name}</Text>
-          {currentView === 'ARTICLE_SELECTION' && (
-            <Text style={styles.articleBrand}>Märke: {brand}</Text>
-          )}
-        </View>
-        <Text style={styles.articlePrice}>{item.price} kr</Text>
-      </TouchableOpacity>
-    );
-  };
+  // Beräkning av kundens nuvarande progress (efter ev. valda bonusar)
+  const effectiveBalance = Math.max(0, currentBalance - appliedBonusesCount * threshold);
+  const currentProgress = effectiveBalance % threshold;
+  const remainingToNext = threshold - currentProgress;
+  const progressPercent = Math.min(100, Math.round((currentProgress / threshold) * 100));
 
   return (
     <View style={styles.container}>
+      {/* BUTIKS-BADGE HÖGST UPP */}
+      <View style={styles.storeHeaderRow}>
+        <Text style={styles.storeNameText}>
+          {storeSettings?.storeName || 'Min Butik'}
+        </Text>
+        <View style={styles.modePill}>
+          <Text style={styles.modePillText}>
+            {bonusType === 'STAMPS' ? '⭐ Stämpelkort' : '💰 Poäng/Kr'} •{' '}
+            {posMode === 'QUICK' ? '⚡ Snabbläge' : '🛒 Artikelläge'}
+          </Text>
+        </View>
+      </View>
+
+      {/* SÖK KUND PÅ TELEFONNUMMER */}
       <View style={styles.searchRow}>
         <TextInput
           style={styles.phoneInput}
-          placeholder="Kundens telefonnummer"
+          placeholder="Kundens telefonnummer..."
+          placeholderTextColor="#9ca3af"
           keyboardType="phone-pad"
           value={phone}
           onChangeText={(text) => {
             setPhone(text);
-            if (customerStatus) setCustomerStatus(null);
-            setAppliedBonusesCount(0);
-            setAvailableBonuses(0);
-            setCustomerId(null);
-            setIsNewCustomer(false);
+            if (customerSearched) resetCustomerState();
           }}
         />
         <TouchableOpacity style={styles.searchButton} onPress={searchCustomer}>
@@ -336,172 +378,330 @@ export default function PosScreen() {
         </TouchableOpacity>
       </View>
 
-      {customerStatus && (
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusText}>{customerStatus}</Text>
+      {/* KUNDKORT (VISUELLT STÄMPELKORT ELLER PROGRESS-BAR) */}
+      {customerSearched && (
+        <View style={styles.customerCard}>
+          <View style={styles.customerHeaderRow}>
+            <Text style={styles.customerBadgeText}>
+              {isNewCustomer ? '✨ Ny kund' : '👋 Registrerad kund'}
+            </Text>
+            {customerId && (
+              <TouchableOpacity onPress={handleDeleteCustomer}>
+                <Text style={styles.gdprDeleteText}>Ta bort kund (GDPR)</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
+          {bonusType === 'STAMPS' ? (
+            <View style={styles.stampSection}>
+              <Text style={styles.progressSummaryText}>
+                {currentProgress} av {threshold} stämplar ({remainingToNext} kvar till{' '}
+                {rewardDescription})
+              </Text>
+
+              {threshold <= 20 ? (
+                <View style={styles.stampsGrid}>
+                  {Array.from({ length: threshold }).map((_, idx) => {
+                    const isFilled = idx < currentProgress;
+                    return (
+                      <View
+                        key={idx}
+                        style={[
+                          styles.stampCircle,
+                          isFilled && styles.stampCircleFilled,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.stampCircleText,
+                            isFilled && styles.stampCircleTextFilled,
+                          ]}
+                        >
+                          {isFilled ? '⭐' : idx + 1}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.progressBarBg}>
+                  <View
+                    style={[styles.progressBarFill, { width: `${progressPercent}%` }]}
+                  />
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.stampSection}>
+              <Text style={styles.progressSummaryText}>
+                {currentProgress} / {threshold} kr ({remainingToNext} kr kvar till{' '}
+                {rewardAmount} kr bonus)
+              </Text>
+              <View style={styles.progressBarBg}>
+                <View
+                  style={[styles.progressBarFill, { width: `${progressPercent}%` }]}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* BONUS ATT LÖSA IN */}
           {availableBonuses > 0 && (
-            <View style={{ marginTop: 10 }}>
+            <View style={styles.bonusBox}>
+              <Text style={styles.bonusBoxTitle}>
+                🎁 Kunden har {availableBonuses} st bonus att hämta ut!
+              </Text>
+
               {availableBonuses - appliedBonusesCount > 0 && (
                 <TouchableOpacity
-                  style={styles.bonusButton}
-                  onPress={() => setAppliedBonusesCount(prev => prev + 1)}
+                  style={styles.redeemButton}
+                  onPress={() => setAppliedBonusesCount((prev) => prev + 1)}
                 >
-                  <Text style={styles.bonusButtonText}>Utnyttja 1 st bonus (-{rewardAmount} kr)</Text>
+                  <Text style={styles.redeemButtonText}>
+                    Utnyttja 1 bonus (
+                    {bonusType === 'STAMPS'
+                      ? rewardDescription
+                      : `-${rewardAmount} kr`}
+                    )
+                  </Text>
                 </TouchableOpacity>
               )}
 
               {appliedBonusesCount > 0 && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-                  <Text style={styles.bonusAppliedText}>
-                    {appliedBonusesCount} st bonusar valda (-{appliedBonusesCount * rewardAmount} kr)
+                <View style={styles.appliedBonusRow}>
+                  <Text style={styles.appliedBonusText}>
+                    ✓ {appliedBonusesCount} st bonus vald att lösas in
                   </Text>
-                  <TouchableOpacity onPress={() => setAppliedBonusesCount(0)} style={{ padding: 5 }}>
-                    <Text style={{ color: '#f37f06', textDecorationLine: 'underline', fontSize: 16 }}>Nollställ/Ångra</Text>
+                  <TouchableOpacity onPress={() => setAppliedBonusesCount(0)}>
+                    <Text style={styles.undoBonusText}>Ångra</Text>
                   </TouchableOpacity>
                 </View>
               )}
-
-              {appliedBonusesCount > 0 && availableBonuses - appliedBonusesCount > 0 && (
-                <Text style={{ color: '#555', marginTop: 5, fontStyle: 'italic' }}>
-                  Kunden har {availableBonuses - appliedBonusesCount} bonus(ar) kvar att utnyttja.
-                </Text>
-              )}
-              {appliedBonusesCount > 0 && availableBonuses - appliedBonusesCount === 0 && (
-                <Text style={{ color: '#555', marginTop: 5, fontStyle: 'italic' }}>
-                  Kunden har inga fler bonusar att utnyttja på detta köp.
-                </Text>
-              )}
             </View>
-          )}
-          
-          {customerId !== null && (
-            <TouchableOpacity onPress={handleDeleteCustomer} style={styles.deleteButton}>
-              <Text style={styles.deleteButtonText}>Ta bort kund helt (GDPR)</Text>
-            </TouchableOpacity>
           )}
         </View>
       )}
 
-      {/* KNAPP FÖR STRECKKODSSCANNING */}
-      <TouchableOpacity
-        style={styles.scanButton}
-        onPress={() => setIsScannerOpen(true)}
-      >
-        <Text style={styles.scanButtonText}>📷 Scanna streckkod på vara</Text>
-      </TouchableOpacity>
-
-      <BarcodeScannerModal
-        visible={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-        onScan={handleBarcodeScanned}
-        title="Scanna vara"
-        subtitle="Rikta kameran mot streckkoden på produkten"
-      />
-
+      {/* HUVUDYTA: SNABBLÄGE ELLER ARTIKELLÄGE */}
       <View style={styles.contentArea}>
-        {currentView === 'HOME' ? (
+        {posMode === 'QUICK' ? (
           <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-            <Text style={styles.label}>Välj artiklar:</Text>
-            {topSellers.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.articleCard}
-                onPress={() => setCart([...cart, item])}
-              >
-                <Text style={styles.articleName}>{item.name}</Text>
-                <Text style={styles.articlePrice}>{item.price} kr</Text>
-              </TouchableOpacity>
-            ))}
+            {bonusType === 'STAMPS' ? (
+              <View style={styles.quickCard}>
+                <Text style={styles.quickCardTitle}>Hur många stämplar vill du ge?</Text>
 
-            <View style={styles.categoryRow}>
-              <TouchableOpacity
-                style={styles.colorCategoryButton}
-                onPress={() => handleCategoryPress('Färgfilm')}
-              >
-                <View style={styles.colorStripes}>
-                  <View style={[styles.stripe, { backgroundColor: '#4188d8' }]} />
-                  <View style={[styles.stripe, { backgroundColor: '#84c952' }]} />
-                  <View style={[styles.stripe, { backgroundColor: '#f6b518' }]} />
-                  <View style={[styles.stripe, { backgroundColor: '#f37f06' }]} />
-                  <View style={[styles.stripe, { backgroundColor: '#ee0c00' }]} />
-                </View>
-                <View style={styles.categoryOverlay}>
-                  <Text style={styles.colorCategoryText}>COLOR</Text>
-                </View>
-              </TouchableOpacity>
+                <View style={styles.stampStepperRow}>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => setQuickStamps((prev) => Math.max(0, prev - 1))}
+                  >
+                    <Text style={styles.stepperBtnText}>−</Text>
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.bwCategoryButton}
-                onPress={() => handleCategoryPress('Svartvit film')}
-              >
-                <View style={styles.bwStripes}>
-                  <View style={[styles.stripe, { backgroundColor: '#ffffff' }]} />
-                  <View style={[styles.stripe, { backgroundColor: '#000000' }]} />
+                  <View style={styles.stampCountDisplay}>
+                    <Text style={styles.stampCountNumber}>+{quickStamps}</Text>
+                    <Text style={styles.stampCountLabel}>
+                      {quickStamps === 1 ? 'stämpel' : 'stämplar'}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => setQuickStamps((prev) => prev + 1)}
+                  >
+                    <Text style={styles.stepperBtnText}>＋</Text>
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.categoryOverlay}>
-                  <Text style={[styles.bwCategoryText, { color: '#000', marginRight: 15 }]}>BLACK</Text>
-                  <Text style={[styles.bwCategoryText, { color: '#fff', marginLeft: 15 }]}>WHITE</Text>
+
+                <View style={styles.quickPresetsRow}>
+                  {[1, 2, 3, 5].map((num) => (
+                    <TouchableOpacity
+                      key={num}
+                      style={[
+                        styles.presetChip,
+                        quickStamps === num && styles.presetChipActive,
+                      ]}
+                      onPress={() => setQuickStamps(num)}
+                    >
+                      <Text
+                        style={[
+                          styles.presetChipText,
+                          quickStamps === num && styles.presetChipTextActive,
+                        ]}
+                      >
+                        +{num} st
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              </TouchableOpacity>
-            </View>
+              </View>
+            ) : (
+              <View style={styles.quickCard}>
+                <Text style={styles.quickCardTitle}>Ange köpesumma (kr)</Text>
+                <TextInput
+                  style={styles.quickAmountInput}
+                  placeholder="0 kr"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="numeric"
+                  value={quickAmount}
+                  onChangeText={setQuickAmount}
+                />
+                <View style={styles.quickPresetsRow}>
+                  {[50, 100, 250, 500].map((val) => (
+                    <TouchableOpacity
+                      key={val}
+                      style={styles.presetChip}
+                      onPress={() =>
+                        setQuickAmount(((parseFloat(quickAmount) || 0) + val).toString())
+                      }
+                    >
+                      <Text style={styles.presetChipText}>+{val} kr</Text>
+                    </TouchableOpacity>
+                  ))}
+                  {quickAmount.length > 0 && (
+                    <TouchableOpacity
+                      style={[styles.presetChip, { borderColor: '#ef4444' }]}
+                      onPress={() => setQuickAmount('')}
+                    >
+                      <Text style={[styles.presetChipText, { color: '#ef4444' }]}>
+                        Rensa
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
           </ScrollView>
-        ) : currentView === 'BRAND_SELECTION' ? (
-          <View style={styles.categoryView}>
-            <View style={styles.categoryHeader}>
-              <TouchableOpacity onPress={() => setCurrentView('HOME')} style={styles.backButton}>
-                <Text style={styles.backButtonText}>{"< TILLBAKA (HEM)"}</Text>
-              </TouchableOpacity>
-              <Text style={styles.categoryTitle}>{selectedCategory}</Text>
-            </View>
-            <View style={styles.brandsGrid}>
-              {uniqueBrands.map((brand) => (
-                <TouchableOpacity
-                  key={brand}
-                  style={styles.brandSquareButton}
-                  onPress={() => handleBrandPress(brand)}
-                >
-                  <Text style={styles.brandButtonText}>{brand}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
         ) : (
-          <View style={styles.categoryView}>
-            <View style={styles.categoryHeader}>
-              <TouchableOpacity onPress={() => setCurrentView('BRAND_SELECTION')} style={styles.backButton}>
-                <Text style={styles.backButtonText}>{`< TILLBAKA (${selectedCategory})`}</Text>
-              </TouchableOpacity>
-              <Text style={styles.categoryTitle}>{selectedBrand}</Text>
+          /* ARTIKELLÄGE */
+          <View style={{ flex: 1 }}>
+            <TouchableOpacity
+              style={styles.scanButton}
+              onPress={() => setIsScannerOpen(true)}
+            >
+              <Text style={styles.scanButtonText}>📷 Scanna streckkod på vara</Text>
+            </TouchableOpacity>
+
+            <BarcodeScannerModal
+              visible={isScannerOpen}
+              onClose={() => setIsScannerOpen(false)}
+              onScan={handleBarcodeScanned}
+              title="Scanna vara"
+              subtitle="Rikta kameran mot streckkoden på produkten"
+            />
+
+            {/* KATEGORI-FILTER */}
+            <View style={{ marginBottom: 10 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <TouchableOpacity
+                  style={[
+                    styles.catTab,
+                    selectedCategory === 'ALLA' && styles.catTabActive,
+                  ]}
+                  onPress={() => setSelectedCategory('ALLA')}
+                >
+                  <Text
+                    style={[
+                      styles.catTabText,
+                      selectedCategory === 'ALLA' && styles.catTabTextActive,
+                    ]}
+                  >
+                    Alla ({availableArticles.length})
+                  </Text>
+                </TouchableOpacity>
+
+                {topSellers.length > 0 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.catTab,
+                      selectedCategory === 'TOP' && styles.catTabActive,
+                    ]}
+                    onPress={() => setSelectedCategory('TOP')}
+                  >
+                    <Text
+                      style={[
+                        styles.catTabText,
+                        selectedCategory === 'TOP' && styles.catTabTextActive,
+                      ]}
+                    >
+                      🔥 Toppsäljare
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {uniqueCategories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.catTab,
+                      selectedCategory === cat && styles.catTabActive,
+                    ]}
+                    onPress={() => setSelectedCategory(cat)}
+                  >
+                    <Text
+                      style={[
+                        styles.catTabText,
+                        selectedCategory === cat && styles.catTabTextActive,
+                      ]}
+                    >
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
+
             <FlatList
-              data={brandArticles}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={renderArticle}
+              data={displayedArticles}
+              keyExtractor={(item) => item.id}
+              ListEmptyComponent={
+                <View style={styles.emptyArticlesBox}>
+                  <Text style={styles.emptyArticlesText}>
+                    Inga artiklar hittades. Lägg till varor under Inställningar &gt;
+                    Artiklar, eller byt till Snabbläge!
+                  </Text>
+                </View>
+              }
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.articleCard}
+                  onPress={() => setCart([...cart, item])}
+                >
+                  <View>
+                    <Text style={styles.articleName}>{item.name}</Text>
+                    <Text style={styles.articleCategory}>{item.category}</Text>
+                  </View>
+                  <Text style={styles.articlePrice}>+{item.price} kr</Text>
+                </TouchableOpacity>
+              )}
             />
           </View>
         )}
       </View>
 
+      {/* FOOTER: VARUKORG & SLUTFÖR-KNAPP */}
       <View style={styles.footer}>
-        {cart.length > 0 && (
+        {posMode === 'ARTICLES' && cart.length > 0 && (
           <View style={styles.cartContainer}>
             <View style={styles.cartHeaderRow}>
-              <Text style={styles.cartHeaderTitle}>Valda artiklar ({cart.length} st):</Text>
-              <TouchableOpacity onPress={() => setCart([])} style={styles.clearCartButton}>
-                <Text style={styles.clearCartButtonText}>Töm varukorg</Text>
+              <Text style={styles.cartHeaderTitle}>
+                Varukorg ({cart.length} st):
+              </Text>
+              <TouchableOpacity onPress={() => setCart([])}>
+                <Text style={styles.clearCartText}>Töm varukorg</Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.cartScrollList} nestedScrollEnabled={true}>
               {groupedCart.map(({ article, quantity, totalPrice }) => (
                 <View key={article.id} style={styles.cartItemRow}>
-                  <View style={styles.cartItemTextContainer}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
                     <Text style={styles.cartItemName} numberOfLines={1}>
                       {article.name}
                     </Text>
                     <Text style={styles.cartItemPrice}>
-                      {quantity > 1 ? `${quantity} × ${article.price} kr = ` : ''}{totalPrice} kr
+                      {quantity > 1 ? `${quantity} × ${article.price} kr = ` : ''}
+                      {totalPrice} kr
                     </Text>
                   </View>
 
@@ -512,21 +712,18 @@ export default function PosScreen() {
                     >
                       <Text style={styles.cartQtyBtnText}>−</Text>
                     </TouchableOpacity>
-
                     <Text style={styles.cartQtyNumber}>{quantity}</Text>
-
                     <TouchableOpacity
                       style={styles.cartQtyBtn}
                       onPress={() => setCart([...cart, article])}
                     >
                       <Text style={styles.cartQtyBtnText}>+</Text>
                     </TouchableOpacity>
-
                     <TouchableOpacity
                       style={styles.cartDeleteBtn}
                       onPress={() => handleRemoveAllOfArticle(article.id)}
                     >
-                      <Text style={styles.cartDeleteBtnText}>Ångra</Text>
+                      <Text style={styles.cartDeleteBtnText}>✕</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -538,18 +735,34 @@ export default function PosScreen() {
         <View style={styles.totalRow}>
           {appliedBonusesCount > 0 && (
             <Text style={styles.discountText}>
-              Bonus: -{appliedBonusesCount * rewardAmount} kr
+              Inlöst bonus:{' '}
+              {bonusType === 'STAMPS'
+                ? `${appliedBonusesCount} × ${rewardDescription}`
+                : `-${appliedBonusesCount * rewardAmount} kr`}
             </Text>
           )}
-          <Text style={styles.totalText}>Totalt: {total} kr</Text>
+          <Text style={styles.totalText}>
+            {bonusType === 'STAMPS' && posMode === 'QUICK'
+              ? `Att registrera: +${quickStamps} stämpel`
+              : bonusType === 'STAMPS' && posMode === 'ARTICLES'
+              ? `Totalt: ${totalToPayKr} kr (+${cart.length} stämplar)`
+              : `Totalt: ${totalToPayKr} kr`}
+          </Text>
         </View>
 
         <TouchableOpacity
-          style={[styles.checkoutButton, cart.length === 0 && styles.checkoutButtonDisabled]}
+          style={[
+            styles.checkoutButton,
+            !canCheckout && styles.checkoutButtonDisabled,
+          ]}
           onPress={handleComplete}
-          disabled={cart.length === 0}
+          disabled={!canCheckout}
         >
-          <Text style={styles.checkoutButtonText}>Slutför köp & Skicka SMS</Text>
+          <Text style={styles.checkoutButtonText}>
+            {bonusType === 'STAMPS'
+              ? 'Registrera stämpel & Skicka SMS'
+              : 'Slutför köp & Skicka SMS'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -557,196 +770,414 @@ export default function PosScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#fafafa' },
-  searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  phoneInput: { flex: 1, fontSize: 24, borderBottomWidth: 1, borderColor: '#ccc', padding: 10, marginRight: 10, backgroundColor: '#fff' },
-  searchButton: { backgroundColor: '#4188d8', padding: 15, borderRadius: 4, justifyContent: 'center' },
-  searchButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  statusContainer: { marginBottom: 20 },
-  statusText: { fontSize: 16, color: '#555', fontStyle: 'italic', marginBottom: 10 },
-  bonusButton: { backgroundColor: '#f37f06', padding: 10, borderRadius: 8, alignItems: 'center' },
-  bonusButtonText: { color: '#fff', fontWeight: 'bold' },
-  bonusAppliedText: { color: '#f37f06', fontWeight: 'bold', fontSize: 16, textAlign: 'center' },
-  deleteButton: { marginTop: 15, padding: 10, borderWidth: 1, borderColor: '#ee0c00', borderRadius: 8, alignItems: 'center' },
-  deleteButtonText: { color: '#ee0c00', fontWeight: 'bold' },
-
-  contentArea: { flex: 1, marginTop: 10 },
-  label: { fontSize: 14, fontWeight: 'bold', marginBottom: 10, color: '#333' },
-
-  articleCard: {
-    padding: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  container: { flex: 1, padding: 16, backgroundColor: '#f4f6f9' },
+  storeHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  articleName: { fontSize: 16, color: '#333' },
-  articleBrand: { fontSize: 12, color: '#666', marginTop: 4 },
-  articlePrice: { fontSize: 16, fontWeight: 'bold', color: '#000' },
-
-  categoryRow: { flexDirection: 'row', height: 96, gap: 15, marginTop: 20 },
-  colorCategoryButton: { flex: 1, overflow: 'hidden' },
-  bwCategoryButton: { flex: 1, overflow: 'hidden', borderWidth: 1, borderColor: '#ccc' },
-  colorStripes: { flexDirection: 'row', flex: 1 },
-  bwStripes: { flexDirection: 'row', flex: 1 },
-  stripe: { flex: 1 },
-  categoryOverlay: {
-    ...StyleSheet.absoluteFillObject,
+  storeNameText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  modePill: {
+    backgroundColor: '#e0e7ff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  modePillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1d4ed8',
+  },
+  searchRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
+  phoneInput: {
+    flex: 1,
+    fontSize: 20,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    color: '#111827',
+  },
+  searchButton: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 10,
+    justifyContent: 'center',
+  },
+  searchButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  customerCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  customerHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  customerBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1e40af',
+  },
+  gdprDeleteText: {
+    fontSize: 12,
+    color: '#dc2626',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  stampSection: {
+    marginTop: 2,
+  },
+  progressSummaryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 10,
+  },
+  stampsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  stampCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 2,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#f8fafc',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  colorCategoryText: { fontSize: 28, fontWeight: '800', color: '#fff' },
-  bwCategoryText: { fontSize: 20, fontWeight: 'bold' },
-
-  categoryView: { flex: 1 },
-  categoryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#ccc' },
-  backButton: { padding: 10, marginRight: 15 },
-  backButtonText: { fontSize: 16, fontWeight: 'bold', color: '#4188d8' },
-  categoryTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-
-  brandsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 20, marginTop: 20 },
-  brandSquareButton: { width: 150, height: 150, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
-  brandButtonText: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-
-  footer: { paddingTop: 10 },
+  stampCircleFilled: {
+    borderColor: '#f59e0b',
+    backgroundColor: '#fef3c7',
+  },
+  stampCircleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#94a3b8',
+  },
+  stampCircleTextFilled: {
+    fontSize: 16,
+    color: '#d97706',
+  },
+  progressBarBg: {
+    height: 12,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#2563eb',
+    borderRadius: 6,
+  },
+  bonusBox: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  bonusBoxTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#d97706',
+    marginBottom: 8,
+  },
+  redeemButton: {
+    backgroundColor: '#f59e0b',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  redeemButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  appliedBonusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  appliedBonusText: {
+    color: '#16a34a',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  undoBonusText: {
+    color: '#dc2626',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+    fontSize: 14,
+  },
+  contentArea: {
+    flex: 1,
+  },
+  quickCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  quickCardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 18,
+  },
+  stampStepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 28,
+    marginBottom: 20,
+  },
+  stepperBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#eff6ff',
+    borderWidth: 2,
+    borderColor: '#2563eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepperBtnText: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
+  stampCountDisplay: {
+    alignItems: 'center',
+    minWidth: 90,
+  },
+  stampCountNumber: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  stampCountLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  quickAmountInput: {
+    width: '100%',
+    fontSize: 32,
+    fontWeight: '800',
+    textAlign: 'center',
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#f9fafb',
+    color: '#111827',
+    marginBottom: 16,
+  },
+  quickPresetsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  presetChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  presetChipActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
+  },
+  presetChipText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  presetChipTextActive: {
+    color: '#ffffff',
+  },
+  scanButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#2563eb',
+    borderRadius: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  scanButtonText: {
+    color: '#2563eb',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  catTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    marginRight: 8,
+  },
+  catTabActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
+  },
+  catTabText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  catTabTextActive: {
+    color: '#ffffff',
+  },
+  articleCard: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  articleName: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  articleCategory: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  articlePrice: { fontSize: 16, fontWeight: '800', color: '#2563eb' },
+  emptyArticlesBox: {
+    padding: 24,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  emptyArticlesText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  footer: { paddingTop: 8 },
   cartContainer: {
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e5e5e5',
+    borderColor: '#e5e7eb',
     padding: 10,
-    marginBottom: 10,
-    maxHeight: 140,
+    marginBottom: 8,
+    maxHeight: 135,
   },
   cartHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 6,
-    paddingBottom: 6,
+    paddingBottom: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#f3f4f6',
   },
-  cartHeaderTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  clearCartButton: {
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-  },
-  clearCartButtonText: {
+  cartHeaderTitle: { fontSize: 13, fontWeight: '700', color: '#374151' },
+  clearCartText: {
     fontSize: 12,
-    color: '#ee0c00',
-    fontWeight: '600',
-    textDecorationLine: 'underline',
+    color: '#dc2626',
+    fontWeight: '700',
   },
-  cartScrollList: {
-    maxHeight: 90,
-  },
+  cartScrollList: { maxHeight: 85 },
   cartItemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f7f7f7',
+    paddingVertical: 4,
   },
-  cartItemTextContainer: {
-    flex: 1,
-    marginRight: 10,
-  },
-  cartItemName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#222',
-  },
-  cartItemPrice: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  cartControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
+  cartItemName: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  cartItemPrice: { fontSize: 12, color: '#6b7280' },
+  cartControls: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cartQtyBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#eef3f9',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#eff6ff',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#d0dfef',
+    borderColor: '#bfdbfe',
   },
-  cartQtyBtnText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4188d8',
-    lineHeight: 18,
-  },
+  cartQtyBtnText: { fontSize: 15, fontWeight: '700', color: '#2563eb' },
   cartQtyNumber: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '700',
     minWidth: 18,
     textAlign: 'center',
-    color: '#333',
   },
   cartDeleteBtn: {
-    backgroundColor: '#fff0f0',
-    borderWidth: 1,
-    borderColor: '#ffd0d0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginLeft: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  cartDeleteBtnText: {
-    fontSize: 12,
-    color: '#ee0c00',
-    fontWeight: '600',
-  },
+  cartDeleteBtnText: { fontSize: 14, color: '#dc2626', fontWeight: '700' },
   totalRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 15,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   discountText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#f37f06',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#d97706',
   },
-  totalText: { fontSize: 24, fontWeight: 'bold', textAlign: 'right' },
-  checkoutButton: { backgroundColor: '#84c952', padding: 18, borderRadius: 8, alignItems: 'center' },
-  checkoutButtonDisabled: { backgroundColor: '#cccccc' },
-  checkoutButtonText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  scanButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: '#4188d8',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  totalText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    marginLeft: 'auto',
+  },
+  checkoutButton: {
+    backgroundColor: '#16a34a',
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
-  scanButtonText: {
-    color: '#4188d8',
-    fontSize: 16,
-    fontWeight: 'bold',
+  checkoutButtonDisabled: {
+    backgroundColor: '#9ca3af',
+  },
+  checkoutButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
   },
 });
