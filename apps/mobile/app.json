@@ -1,23 +1,23 @@
 {
   "expo": {
-    "name": "Kamera Stockholm POS",
-    "slug": "fotobutik-mobile",
+    "name": "SuperBasicBonusStamp",
+    "slug": "super-basic-bonus-stamp",
     "version": "1.0.0",
     "orientation": "default",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "se.kamerastockholm.pos",
+      "bundleIdentifier": "se.bonusstamp.pos",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Kamera Stockholm behöver tillgång till kameran för att scanna streckkoder på artiklar."
+        "NSCameraUsageDescription": "Appen behöver tillgång till kameran för att scanna streckkoder på artiklar."
       }
     },
     "plugins": [
       [
         "expo-camera",
         {
-          "cameraPermission": "Kamera Stockholm behöver tillgång till kameran för att scanna streckkoder på artiklar."
+          "cameraPermission": "Appen behöver tillgång till kameran för att scanna streckkoder på artiklar."
         }
       ]
     ],
