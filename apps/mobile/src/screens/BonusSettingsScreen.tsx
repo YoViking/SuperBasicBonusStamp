@@ -30,6 +30,8 @@ import {
   DEFAULT_STAMP_BONUS_MESSAGE,
   DEFAULT_POINTS_PURCHASE_MESSAGE,
   DEFAULT_POINTS_BONUS_MESSAGE,
+  normalizePurchaseTemplate,
+  normalizeBonusTemplate,
   formatSmsMessage,
 } from '../services/smsFormatter';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
@@ -57,8 +59,12 @@ export default function BonusSettingsScreen() {
       setThreshold(data.threshold.toString());
       setRewardAmount(data.rewardAmount.toString());
       setRewardDescription(data.rewardDescription || '1 gratis vara');
-      setPurchaseMessage(data.purchaseMessage);
-      setBonusMessage(data.bonusMessage);
+      setPurchaseMessage(
+        normalizePurchaseTemplate(data.purchaseMessage, data.bonusType)
+      );
+      setBonusMessage(
+        normalizeBonusTemplate(data.bonusMessage, data.bonusType)
+      );
     } catch (err) {
       console.error('Kunde inte läsa butiksinställningar', err);
     }
@@ -77,22 +83,12 @@ export default function BonusSettingsScreen() {
     if (nextType === 'STAMPS') {
       if (threshold === '1000') setThreshold('10');
       if (rewardAmount === '100') setRewardAmount('1');
-      if (purchaseMessage === DEFAULT_POINTS_PURCHASE_MESSAGE) {
-        setPurchaseMessage(DEFAULT_STAMP_PURCHASE_MESSAGE);
-      }
-      if (bonusMessage === DEFAULT_POINTS_BONUS_MESSAGE) {
-        setBonusMessage(DEFAULT_STAMP_BONUS_MESSAGE);
-      }
     } else {
       if (threshold === '10') setThreshold('1000');
       if (rewardAmount === '1') setRewardAmount('100');
-      if (purchaseMessage === DEFAULT_STAMP_PURCHASE_MESSAGE) {
-        setPurchaseMessage(DEFAULT_POINTS_PURCHASE_MESSAGE);
-      }
-      if (bonusMessage === DEFAULT_STAMP_BONUS_MESSAGE) {
-        setBonusMessage(DEFAULT_POINTS_BONUS_MESSAGE);
-      }
     }
+    setPurchaseMessage((prev) => normalizePurchaseTemplate(prev, nextType));
+    setBonusMessage((prev) => normalizeBonusTemplate(prev, nextType));
   };
 
   const handleSave = async () => {
