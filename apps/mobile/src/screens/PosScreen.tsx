@@ -14,9 +14,6 @@ import {
 } from 'react-native';
 import {
   Star,
-  Coins,
-  Zap,
-  ShoppingCart,
   Sparkles,
   UserCheck,
   Gift,
@@ -365,29 +362,11 @@ export default function PosScreen() {
 
   return (
     <View style={styles.container}>
-      {/* BUTIKS-BADGE HÖGST UPP */}
+      {/* BUTIKSNAMN HÖGST UPP */}
       <View style={styles.storeHeaderRow}>
         <Text style={styles.storeNameText}>
           {storeSettings?.storeName || 'Min Butik'}
         </Text>
-        <View style={styles.modePill}>
-          {bonusType === 'STAMPS' ? (
-            <Star size={13} color={colors.primaryStrongText} />
-          ) : (
-            <Coins size={13} color={colors.primaryStrongText} />
-          )}
-          <Text style={styles.modePillText}>
-            {bonusType === 'STAMPS' ? 'Stämpelkort' : 'Poäng/Kr'} •
-          </Text>
-          {posMode === 'QUICK' ? (
-            <Zap size={13} color={colors.primaryStrongText} />
-          ) : (
-            <ShoppingCart size={13} color={colors.primaryStrongText} />
-          )}
-          <Text style={styles.modePillText}>
-            {posMode === 'QUICK' ? 'Snabbläge' : 'Artikelläge'}
-          </Text>
-        </View>
       </View>
 
       {/* SÖK KUND PÅ TELEFONNUMMER */}
@@ -835,20 +814,6 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 16,
       fontWeight: '800',
       color: colors.text,
-    },
-    modePill: {
-      backgroundColor: colors.modePillBg,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    modePillText: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: colors.primaryStrongText,
     },
     searchRow: {
       flexDirection: 'row',
