@@ -34,6 +34,7 @@ export interface Customer {
   phoneNumber: string;
   currentBalance: number;
   totalSpent: number;
+  optOutOutreach?: boolean;
   createdAt?: string;
 }
 
@@ -311,9 +312,79 @@ function mapCustomerFromDb(row: any): Customer {
     phoneNumber: row.phone_number,
     currentBalance: Number(row.current_balance ?? 0),
     totalSpent: Number(row.total_spent ?? 0),
+    optOutOutreach: Boolean(row.opt_out_outreach ?? false),
     createdAt: row.created_at,
   };
 }
+
+const OPT_OUT_IDS_KEY = '@sbbs_opt_out_customer_ids';
+
+async function getLocalOptOutIds(): Promise<Set<string>> {
+  const raw = await AsyncStorage.getItem(OPT_OUT_IDS_KEY);
+  const arr: string[] = raw ? JSON.parse(raw) : [];
+  return new Set(arr);
+}
+
+export const getAllCustomers = async (): Promise<Customer[]> => {
+  const localOptOut = await getLocalOptOutIds();
+
+  if (await isDemoModeActive()) {
+    const raw = await AsyncStorage.getItem(DEMO_CUSTOMERS_KEY);
+    const list: Customer[] = raw ? JSON.parse(raw) : [];
+    return [...list]
+      .map((c) => ({
+        ...c,
+        optOutOutreach: Boolean(c.optOutOutreach || localOptOut.has(c.id)),
+      }))
+      .sort((a, b) => b.currentBalance - a.currentBalance);
+  }
+
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('store_id', userId)
+    .order('current_balance', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => {
+    const mapped = mapCustomerFromDb(row);
+    return {
+      ...mapped,
+      optOutOutreach: Boolean(mapped.optOutOutreach || localOptOut.has(mapped.id)),
+    };
+  });
+};
+
+export const setCustomerOutreachOptOut = async (
+  customerId: string,
+  optOut: boolean
+): Promise<void> => {
+  const localOptOut = await getLocalOptOutIds();
+  if (optOut) {
+    localOptOut.add(customerId);
+  } else {
+    localOptOut.delete(customerId);
+  }
+  await AsyncStorage.setItem(OPT_OUT_IDS_KEY, JSON.stringify([...localOptOut]));
+
+  if (await isDemoModeActive()) {
+    const raw = await AsyncStorage.getItem(DEMO_CUSTOMERS_KEY);
+    const list: Customer[] = raw ? JSON.parse(raw) : [];
+    const updated = list.map((c) =>
+      c.id === customerId ? { ...c, optOutOutreach: optOut } : c
+    );
+    await AsyncStorage.setItem(DEMO_CUSTOMERS_KEY, JSON.stringify(updated));
+    return;
+  }
+
+  const userId = await getCurrentUserId();
+  await supabase
+    .from('customers')
+    .update({ opt_out_outreach: optOut })
+    .eq('id', customerId)
+    .eq('store_id', userId);
+};
 
 export const getCustomer = async (phone: string): Promise<Customer | undefined> => {
   const cleanPhone = phone.trim();

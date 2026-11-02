@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
   phone_number TEXT NOT NULL,
   current_balance NUMERIC NOT NULL DEFAULT 0,
   total_spent NUMERIC NOT NULL DEFAULT 0,
+  opt_out_outreach BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (store_id, phone_number)
 );

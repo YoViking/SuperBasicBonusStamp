@@ -185,6 +185,38 @@ export interface Translations {
     savedTitle: string;
     savedMsg: string;
     saveErrorMsg: string;
+    tabSettings: string;
+    tabOutreach: string;
+    outreachFilterTitle: string;
+    outreachFilterHelper: string;
+    filterAllTitle: string;
+    filterAllDesc: string;
+    filterHasBonusTitle: string;
+    filterHasBonusDesc: string;
+    filterCloseToBonusTitle: string;
+    filterCloseToBonusDesc: string;
+    outreachMessageTitle: string;
+    outreachMessageHelper: string;
+    defaultCampaignMsg: string;
+    defaultReminderHasBonusMsg: string;
+    defaultReminderCloseMsg: string;
+    includeOptOutLabel: string;
+    optOutFooter: (storeName: string) => string;
+    outreachQueueTitle: (count: number) => string;
+    outreachQueueHelper: string;
+    sendNextBtn: (nextIndex: number, total: number, phone: string) => string;
+    allSentBadge: string;
+    resetQueueBtn: string;
+    emptyFilterCustomers: string;
+    customerSentStatus: string;
+    customerSendSingleBtn: string;
+    customerBonusReadyBadge: (count: number) => string;
+    searchQueuePlaceholder: string;
+    stopBtnLabel: string;
+    unblockBtnLabel: string;
+    showBlockedBtn: (count: number) => string;
+    hideBlockedBtn: string;
+    blockedCustomerBadge: string;
   };
   articles: {
     defaultCategory: string;
@@ -437,6 +469,49 @@ export const translations: Record<LanguageCode, Translations> = {
       savedTitle: 'Sparat!',
       savedMsg: 'Butiksprofilen, kassaläget och bonusreglerna har uppdaterats.',
       saveErrorMsg: 'Kunde inte spara inställningar: ',
+      tabSettings: 'Inställningar',
+      tabOutreach: 'Utskick & SMS',
+      outreachFilterTitle: '1. Välj målgrupp',
+      outreachFilterHelper:
+        'Välj vilka kunder du vill skicka SMS till. Varje kund får ett eget SMS med sitt aktuella saldo.',
+      filterAllTitle: 'Alla kunder',
+      filterAllDesc: 'Kampanjer, nyheter & events',
+      filterHasBonusTitle: 'Har bonus att hämta',
+      filterHasBonusDesc: 'Påminn om outnyttjad bonus',
+      filterCloseToBonusTitle: 'Nära bonus',
+      filterCloseToBonusDesc: 'Bara lite kvar till belöning',
+      outreachMessageTitle: '2. Meddelande',
+      outreachMessageHelper:
+        'Skriv ditt meddelande eller utgå från mallen nedan. Tryck på en tagg för att infoga kundens uppgifter:',
+      defaultCampaignMsg:
+        'Hej! Nu händer det grejer hos {butik}! Varmt välkommen in till oss.',
+      defaultReminderHasBonusMsg:
+        'Hej! Vi vill bara påminna om att du har en bonus ({bonus}) att hämta ut hos {butik}. Varmt välkommen in!',
+      defaultReminderCloseMsg:
+        'Hej! Du har nu {saldo} hos {butik} och har bara {kvar_till_bonus} kvar till din bonus ({bonus}). Välkommen in!',
+      includeOptOutLabel: 'Lägg till "Svara STOPP för att avregistrera"',
+      optOutFooter: (storeName) =>
+        `\n\nSvara STOPP om du inte vill ha fler utskick från ${storeName}.`,
+      outreachQueueTitle: (count) =>
+        count === 1
+          ? '3. Snabbkö för utskick (1 kund)'
+          : `3. Snabbkö för utskick (${count} kunder)`,
+      outreachQueueHelper:
+        'Öppnar SMS-appen för en kund i taget med kundens aktuella saldo.',
+      sendNextBtn: (nextIndex, total, phone) =>
+        `Skicka nästa (${nextIndex}/${total}) • ${phone}`,
+      allSentBadge: 'Alla kunder i urvalet har fått SMS!',
+      resetQueueBtn: 'Börja om utskickskön',
+      emptyFilterCustomers: 'Inga registrerade kunder matchar det valda filtret ännu.',
+      customerSentStatus: 'Skickad',
+      customerSendSingleBtn: 'Öppna SMS',
+      customerBonusReadyBadge: (count) => `${count} bonus klar`,
+      searchQueuePlaceholder: 'Sök telefonnummer...',
+      stopBtnLabel: 'Spärra (STOPP)',
+      unblockBtnLabel: 'Tillåt igen',
+      showBlockedBtn: (count) => `Visa spärrade nummer (${count} st)`,
+      hideBlockedBtn: 'Dölj spärrade nummer',
+      blockedCustomerBadge: 'Spärrad från utskick',
     },
     articles: {
       defaultCategory: 'Allmänt',
@@ -693,6 +768,49 @@ export const translations: Record<LanguageCode, Translations> = {
       savedTitle: 'Saved!',
       savedMsg: 'Store profile, POS mode, and bonus rules have been updated.',
       saveErrorMsg: 'Could not save settings: ',
+      tabSettings: 'Settings',
+      tabOutreach: 'Campaigns & SMS',
+      outreachFilterTitle: '1. Select Audience',
+      outreachFilterHelper:
+        'Choose which customers to message. Each customer receives an individual SMS with their current balance.',
+      filterAllTitle: 'All customers',
+      filterAllDesc: 'Campaigns, news & events',
+      filterHasBonusTitle: 'Has unclaimed bonus',
+      filterHasBonusDesc: 'Remind about ready reward',
+      filterCloseToBonusTitle: 'Close to bonus',
+      filterCloseToBonusDesc: 'Almost at next reward',
+      outreachMessageTitle: '2. Message',
+      outreachMessageHelper:
+        'Write your message or edit the suggested template below. Tap a tag to insert customer details:',
+      defaultCampaignMsg:
+        'Hi! Exciting things are happening at {store}! Welcome in.',
+      defaultReminderHasBonusMsg:
+        'Hi! Just a friendly reminder that you have a bonus ({bonus}) waiting for you at {store}. Welcome in!',
+      defaultReminderCloseMsg:
+        'Hi! You now have {balance} at {store} and only {remaining} left until your bonus ({bonus}). Welcome in!',
+      includeOptOutLabel: 'Add "Reply STOP to opt out"',
+      optOutFooter: (storeName) =>
+        `\n\nReply STOP if you no longer wish to receive offers from ${storeName}.`,
+      outreachQueueTitle: (count) =>
+        count === 1
+          ? '3. Quick-Send Queue (1 customer)'
+          : `3. Quick-Send Queue (${count} customers)`,
+      outreachQueueHelper:
+        'Opens your SMS app for one customer at a time with their personal balance.',
+      sendNextBtn: (nextIndex, total, phone) =>
+        `Send next (${nextIndex}/${total}) • ${phone}`,
+      allSentBadge: 'All customers in this selection have been messaged!',
+      resetQueueBtn: 'Reset send queue',
+      emptyFilterCustomers: 'No registered customers match the selected filter yet.',
+      customerSentStatus: 'Sent',
+      customerSendSingleBtn: 'Open SMS',
+      customerBonusReadyBadge: (count) => `${count} bonus ready`,
+      searchQueuePlaceholder: 'Search phone number...',
+      stopBtnLabel: 'Block (STOP)',
+      unblockBtnLabel: 'Allow again',
+      showBlockedBtn: (count) => `Show blocked numbers (${count})`,
+      hideBlockedBtn: 'Hide blocked numbers',
+      blockedCustomerBadge: 'Blocked from campaigns',
     },
     articles: {
       defaultCategory: 'General',
@@ -949,6 +1067,49 @@ export const translations: Record<LanguageCode, Translations> = {
       savedTitle: 'Gespeichert!',
       savedMsg: 'Geschäftsprofil, Kassenmodus und Bonusregeln wurden aktualisiert.',
       saveErrorMsg: 'Einstellungen konnten nicht gespeichert werden: ',
+      tabSettings: 'Einstellungen',
+      tabOutreach: 'Kampagnen & SMS',
+      outreachFilterTitle: '1. Zielgruppe wählen',
+      outreachFilterHelper:
+        'Wählen Sie aus, welchen Kunden Sie eine SMS senden möchten. Jeder Kunde erhält eine eigene SMS mit seinem aktuellen Guthaben.',
+      filterAllTitle: 'Alle Kunden',
+      filterAllDesc: 'Aktionen, Neuigkeiten & Events',
+      filterHasBonusTitle: 'Bonus abholbereit',
+      filterHasBonusDesc: 'An offenen Bonus erinnern',
+      filterCloseToBonusTitle: 'Kurz vor Bonus',
+      filterCloseToBonusDesc: 'Nur noch wenig bis zur Prämie',
+      outreachMessageTitle: '2. Nachricht',
+      outreachMessageHelper:
+        'Schreiben Sie Ihre Nachricht oder passen Sie die Vorlage an. Tippen Sie auf einen Platzhalter, um Kundendaten einzufügen:',
+      defaultCampaignMsg:
+        'Hallo! Bei {laden} gibt es Neuigkeiten! Schauen Sie gerne vorbei.',
+      defaultReminderHasBonusMsg:
+        'Hallo! Wir möchten Sie daran erinnern, dass noch ein Bonus ({bonus}) bei {laden} auf Sie wartet. Herzlich willkommen!',
+      defaultReminderCloseMsg:
+        'Hallo! Sie haben jetzt {guthaben} bei {laden} und es fehlen nur noch {rest} bis zu Ihrem Bonus ({bonus}). Bis bald!',
+      includeOptOutLabel: '„Antworten Sie mit STOP zum Abmelden“ anfügen',
+      optOutFooter: (storeName) =>
+        `\n\nAntworten Sie mit STOP, wenn Sie keine weiteren Nachrichten von ${storeName} wünschen.`,
+      outreachQueueTitle: (count) =>
+        count === 1
+          ? '3. Warteschlange (1 Kunde)'
+          : `3. Warteschlange (${count} Kunden)`,
+      outreachQueueHelper:
+        'Öffnet die SMS-App für jeweils einen Kunden mit persönlichem Guthaben.',
+      sendNextBtn: (nextIndex, total, phone) =>
+        `Nächster (${nextIndex}/${total}) • ${phone}`,
+      allSentBadge: 'Alle Kunden in dieser Auswahl haben eine SMS erhalten!',
+      resetQueueBtn: 'Warteschlange zurücksetzen',
+      emptyFilterCustomers: 'Noch keine registrierten Kunden entsprechen dem gewählten Filter.',
+      customerSentStatus: 'Gesendet',
+      customerSendSingleBtn: 'SMS öffnen',
+      customerBonusReadyBadge: (count) => `${count} Bonus bereit`,
+      searchQueuePlaceholder: 'Telefonnummer suchen...',
+      stopBtnLabel: 'Sperren (STOP)',
+      unblockBtnLabel: 'Wieder erlauben',
+      showBlockedBtn: (count) => `Gesperrte Nummern anzeigen (${count})`,
+      hideBlockedBtn: 'Gesperrte Nummern ausblenden',
+      blockedCustomerBadge: 'Für Kampagnen gesperrt',
     },
     articles: {
       defaultCategory: 'Allgemein',
@@ -1208,6 +1369,49 @@ export const translations: Record<LanguageCode, Translations> = {
       savedTitle: '¡Guardado!',
       savedMsg: 'El perfil de la tienda, el modo de caja y las reglas de bono se han actualizado.',
       saveErrorMsg: 'No se pudieron guardar los ajustes: ',
+      tabSettings: 'Ajustes',
+      tabOutreach: 'Campañas y SMS',
+      outreachFilterTitle: '1. Elegir destinatarios',
+      outreachFilterHelper:
+        'Elige a qué clientes quieres enviar un SMS. Cada cliente recibirá su propio SMS con su saldo actual.',
+      filterAllTitle: 'Todos los clientes',
+      filterAllDesc: 'Campañas, novedades y eventos',
+      filterHasBonusTitle: 'Con bono disponible',
+      filterHasBonusDesc: 'Recordar bono sin canjear',
+      filterCloseToBonusTitle: 'Cerca del bono',
+      filterCloseToBonusDesc: 'Falta poco para el premio',
+      outreachMessageTitle: '2. Mensaje',
+      outreachMessageHelper:
+        'Escribe tu mensaje o usa la plantilla sugerida. Pulsa una etiqueta para insertar los datos del cliente:',
+      defaultCampaignMsg:
+        '¡Hola! ¡Tenemos novedades en {tienda}! Te esperamos.',
+      defaultReminderHasBonusMsg:
+        '¡Hola! Te recordamos que tienes un bono ({bonus}) listo para canjear en {tienda}. ¡Te esperamos!',
+      defaultReminderCloseMsg:
+        '¡Hola! Ahora tienes {saldo} en {tienda} y solo te faltan {restante} para tu bono ({bonus}). ¡Te esperamos!',
+      includeOptOutLabel: 'Añadir "Responde STOP para darte de baja"',
+      optOutFooter: (storeName) =>
+        `\n\nResponde STOP si no deseas recibir más mensajes de ${storeName}.`,
+      outreachQueueTitle: (count) =>
+        count === 1
+          ? '3. Cola de envío (1 cliente)'
+          : `3. Cola de envío (${count} clientes)`,
+      outreachQueueHelper:
+        'Abre la app de SMS para un cliente a la vez con su saldo personal.',
+      sendNextBtn: (nextIndex, total, phone) =>
+        `Siguiente (${nextIndex}/${total}) • ${phone}`,
+      allSentBadge: '¡Todos los clientes seleccionados han recibido su SMS!',
+      resetQueueBtn: 'Reiniciar cola de envío',
+      emptyFilterCustomers: 'Aún no hay clientes registrados que coincidan con este filtro.',
+      customerSentStatus: 'Enviado',
+      customerSendSingleBtn: 'Abrir SMS',
+      customerBonusReadyBadge: (count) => `${count} bono listo`,
+      searchQueuePlaceholder: 'Buscar teléfono...',
+      stopBtnLabel: 'Bloquear (STOP)',
+      unblockBtnLabel: 'Permitir de nuevo',
+      showBlockedBtn: (count) => `Mostrar números bloqueados (${count})`,
+      hideBlockedBtn: 'Ocultar números bloqueados',
+      blockedCustomerBadge: 'Bloqueado para campañas',
     },
     articles: {
       defaultCategory: 'General',
