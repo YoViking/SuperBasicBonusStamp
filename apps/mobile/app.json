@@ -25,6 +25,9 @@
       "eas": {
         "projectId": "fe360562-f503-46bc-96ad-d8afada42df4"
       }
+    },
+    "android": {
+      "package": "se.bonusstamp.pos"
     }
   }
 }
