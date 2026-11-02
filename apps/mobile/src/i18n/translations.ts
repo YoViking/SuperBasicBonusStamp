@@ -211,6 +211,12 @@ export interface Translations {
     customerSentStatus: string;
     customerSendSingleBtn: string;
     customerBonusReadyBadge: (count: number) => string;
+    searchQueuePlaceholder: string;
+    stopBtnLabel: string;
+    unblockBtnLabel: string;
+    showBlockedBtn: (count: number) => string;
+    hideBlockedBtn: string;
+    blockedCustomerBadge: string;
   };
   articles: {
     defaultCategory: string;
@@ -497,6 +503,12 @@ export const translations: Record<LanguageCode, Translations> = {
       customerSentStatus: 'Skickad',
       customerSendSingleBtn: 'Öppna SMS',
       customerBonusReadyBadge: (count) => `${count} bonus klar`,
+      searchQueuePlaceholder: 'Sök telefonnummer (t.ex. för att spärra vid STOPP)...',
+      stopBtnLabel: 'STOPP',
+      unblockBtnLabel: 'Tillåt igen',
+      showBlockedBtn: (count) => `Visa spärrade nummer (${count} st)`,
+      hideBlockedBtn: 'Dölj spärrade nummer',
+      blockedCustomerBadge: 'Spärrad från utskick',
     },
     articles: {
       defaultCategory: 'Allmänt',
@@ -787,6 +799,12 @@ export const translations: Record<LanguageCode, Translations> = {
       customerSentStatus: 'Sent',
       customerSendSingleBtn: 'Open SMS',
       customerBonusReadyBadge: (count) => `${count} bonus ready`,
+      searchQueuePlaceholder: 'Search phone number (e.g. to block on STOP)...',
+      stopBtnLabel: 'STOP',
+      unblockBtnLabel: 'Allow again',
+      showBlockedBtn: (count) => `Show blocked numbers (${count})`,
+      hideBlockedBtn: 'Hide blocked numbers',
+      blockedCustomerBadge: 'Blocked from campaigns',
     },
     articles: {
       defaultCategory: 'General',
@@ -1077,6 +1095,12 @@ export const translations: Record<LanguageCode, Translations> = {
       customerSentStatus: 'Gesendet',
       customerSendSingleBtn: 'SMS öffnen',
       customerBonusReadyBadge: (count) => `${count} Bonus bereit`,
+      searchQueuePlaceholder: 'Telefonnummer suchen (z. B. zum Sperren bei STOP)...',
+      stopBtnLabel: 'STOP',
+      unblockBtnLabel: 'Wieder erlauben',
+      showBlockedBtn: (count) => `Gesperrte Nummern anzeigen (${count})`,
+      hideBlockedBtn: 'Gesperrte Nummern ausblenden',
+      blockedCustomerBadge: 'Für Kampagnen gesperrt',
     },
     articles: {
       defaultCategory: 'Allgemein',
@@ -1370,6 +1394,12 @@ export const translations: Record<LanguageCode, Translations> = {
       customerSentStatus: 'Enviado',
       customerSendSingleBtn: 'Abrir SMS',
       customerBonusReadyBadge: (count) => `${count} bono listo`,
+      searchQueuePlaceholder: 'Buscar teléfono (p. ej. para bloquear con STOP)...',
+      stopBtnLabel: 'STOP',
+      unblockBtnLabel: 'Permitir de nuevo',
+      showBlockedBtn: (count) => `Mostrar números bloqueados (${count})`,
+      hideBlockedBtn: 'Ocultar números bloqueados',
+      blockedCustomerBadge: 'Bloqueado para campañas',
     },
     articles: {
       defaultCategory: 'General',

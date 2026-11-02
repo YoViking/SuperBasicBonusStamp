@@ -27,11 +27,15 @@ import {
   Sparkles,
   Check,
   RotateCcw,
+  BellOff,
+  Bell,
+  Search,
 } from 'lucide-react-native';
 import {
   getStoreSettings,
   saveStoreSettings,
   getAllCustomers,
+  setCustomerOutreachOptOut,
   Customer,
   BonusType,
   PosMode,
@@ -97,6 +101,8 @@ export default function BonusSettingsScreen() {
   } | null>(null);
   const [includeOptOut, setIncludeOptOut] = useState<boolean>(true);
   const [sentCustomerIds, setSentCustomerIds] = useState<string[]>([]);
+  const [queueSearch, setQueueSearch] = useState<string>('');
+  const [showBlocked, setShowBlocked] = useState<boolean>(false);
 
   const smsQuickTags = useMemo(
     () => [
@@ -303,7 +309,17 @@ export default function BonusSettingsScreen() {
     currencySymbol: currency,
   });
 
-  // Filtrera kunder för Utskick & Påminnelser
+  // Filtrera kunder för Utskick & Påminnelser (exkludera spärrade STOPP-kunder)
+  const activeCustomers = useMemo(
+    () => customers.filter((c) => !c.optOutOutreach),
+    [customers]
+  );
+
+  const blockedCustomers = useMemo(
+    () => customers.filter((c) => Boolean(c.optOutOutreach)),
+    [customers]
+  );
+
   const isCustomerCloseToBonus = (c: Customer) => {
     const progress = c.currentBalance % numThreshold;
     if (progress <= 0) return false;
@@ -316,20 +332,43 @@ export default function BonusSettingsScreen() {
   };
 
   const hasBonusCustomers = useMemo(
-    () => customers.filter((c) => c.currentBalance >= numThreshold),
-    [customers, numThreshold]
+    () => activeCustomers.filter((c) => c.currentBalance >= numThreshold),
+    [activeCustomers, numThreshold]
   );
 
   const closeToBonusCustomers = useMemo(
-    () => customers.filter(isCustomerCloseToBonus),
-    [customers, numThreshold, bonusType]
+    () => activeCustomers.filter(isCustomerCloseToBonus),
+    [activeCustomers, numThreshold, bonusType]
   );
 
   const filteredCustomers = useMemo(() => {
-    if (outreachFilter === 'HAS_BONUS') return hasBonusCustomers;
-    if (outreachFilter === 'CLOSE_TO_BONUS') return closeToBonusCustomers;
-    return customers;
-  }, [outreachFilter, customers, hasBonusCustomers, closeToBonusCustomers]);
+    let base = activeCustomers;
+    if (outreachFilter === 'HAS_BONUS') base = hasBonusCustomers;
+    else if (outreachFilter === 'CLOSE_TO_BONUS') base = closeToBonusCustomers;
+
+    const q = queueSearch.trim().toLowerCase();
+    if (!q) return base;
+    return base.filter((c) => c.phoneNumber.toLowerCase().includes(q));
+  }, [
+    outreachFilter,
+    activeCustomers,
+    hasBonusCustomers,
+    closeToBonusCustomers,
+    queueSearch,
+  ]);
+
+  const handleToggleOptOut = async (customerId: string, nextOptOut: boolean) => {
+    try {
+      setCustomers((prev) =>
+        prev.map((c) =>
+          c.id === customerId ? { ...c, optOutOutreach: nextOptOut } : c
+        )
+      );
+      await setCustomerOutreachOptOut(customerId, nextOptOut);
+    } catch (err) {
+      console.error('Kunde inte uppdatera STOPP-status', err);
+    }
+  };
 
   const formatCustomerOutreachSms = (customer?: Customer) => {
     const balance = customer ? customer.currentBalance : sampleProgress;
@@ -836,7 +875,9 @@ export default function BonusSettingsScreen() {
                     </View>
                   </View>
                   <View style={styles.countBadge}>
-                    <Text style={styles.countBadgeText}>{customers.length}</Text>
+                    <Text style={styles.countBadgeText}>
+                      {activeCustomers.length}
+                    </Text>
                   </View>
                 </TouchableOpacity>
 
@@ -1009,6 +1050,20 @@ export default function BonusSettingsScreen() {
                 {t.bonusSettings.outreachQueueHelper}
               </Text>
 
+              {customers.length > 0 && (
+                <View style={styles.searchQueueRow}>
+                  <Search size={17} color={colors.textMuted} />
+                  <TextInput
+                    style={styles.searchQueueInput}
+                    value={queueSearch}
+                    onChangeText={setQueueSearch}
+                    placeholder={t.bonusSettings.searchQueuePlaceholder}
+                    placeholderTextColor={colors.placeholder}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+              )}
+
               {filteredCustomers.length === 0 ? (
                 <Text style={styles.emptyQueueText}>
                   {t.bonusSettings.emptyFilterCustomers}
@@ -1091,37 +1146,98 @@ export default function BonusSettingsScreen() {
                             </View>
                           </View>
 
-                          <TouchableOpacity
-                            style={[
-                              styles.customerSendBtn,
-                              isSent && styles.customerSendBtnSent,
-                            ]}
-                            onPress={() => sendOutreachSmsToCustomer(customer)}
-                          >
-                            {isSent ? (
-                              <>
-                                <Check size={14} color={colors.success} />
-                                <Text style={styles.customerSendBtnTextSent}>
-                                  {t.bonusSettings.customerSentStatus}
-                                </Text>
-                              </>
-                            ) : (
-                              <>
-                                <Send
-                                  size={13}
-                                  color={colors.primaryStrongText}
-                                />
-                                <Text style={styles.customerSendBtnText}>
-                                  {t.bonusSettings.customerSendSingleBtn}
-                                </Text>
-                              </>
-                            )}
-                          </TouchableOpacity>
+                          <View style={styles.customerActionsRow}>
+                            <TouchableOpacity
+                              style={styles.stopCustomerBtn}
+                              onPress={() =>
+                                handleToggleOptOut(customer.id, true)
+                              }
+                            >
+                              <BellOff size={13} color={colors.textMuted} />
+                              <Text style={styles.stopCustomerBtnText}>
+                                {t.bonusSettings.stopBtnLabel}
+                              </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={[
+                                styles.customerSendBtn,
+                                isSent && styles.customerSendBtnSent,
+                              ]}
+                              onPress={() => sendOutreachSmsToCustomer(customer)}
+                            >
+                              {isSent ? (
+                                <>
+                                  <Check size={14} color={colors.success} />
+                                  <Text style={styles.customerSendBtnTextSent}>
+                                    {t.bonusSettings.customerSentStatus}
+                                  </Text>
+                                </>
+                              ) : (
+                                <>
+                                  <Send
+                                    size={13}
+                                    color={colors.primaryStrongText}
+                                  />
+                                  <Text style={styles.customerSendBtnText}>
+                                    {t.bonusSettings.customerSendSingleBtn}
+                                  </Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       );
                     })}
                   </View>
                 </>
+              )}
+
+              {blockedCustomers.length > 0 && (
+                <View style={styles.blockedSection}>
+                  <TouchableOpacity
+                    style={styles.toggleBlockedBtn}
+                    onPress={() => setShowBlocked((prev) => !prev)}
+                  >
+                    <BellOff size={14} color={colors.textMuted} />
+                    <Text style={styles.toggleBlockedBtnText}>
+                      {showBlocked
+                        ? t.bonusSettings.hideBlockedBtn
+                        : t.bonusSettings.showBlockedBtn(blockedCustomers.length)}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {showBlocked && (
+                    <View style={styles.blockedList}>
+                      {blockedCustomers.map((customer) => (
+                        <View
+                          key={customer.id}
+                          style={styles.blockedCustomerRow}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.customerPhoneText}>
+                              {customer.phoneNumber}
+                            </Text>
+                            <Text style={styles.blockedBadgeText}>
+                              {t.bonusSettings.blockedCustomerBadge}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.unblockCustomerBtn}
+                            onPress={() =>
+                              handleToggleOptOut(customer.id, false)
+                            }
+                          >
+                            <Bell size={13} color={colors.primaryStrongText} />
+                            <Text style={styles.unblockCustomerBtnText}>
+                              {t.bonusSettings.unblockBtnLabel}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
               )}
             </View>
           </>
@@ -1505,6 +1621,100 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 13,
       fontWeight: '700',
       color: colors.success,
+    },
+    searchQueueRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.borderInput,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      backgroundColor: colors.surfaceInput,
+      marginBottom: 14,
+    },
+    searchQueueInput: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.text,
+      padding: 0,
+    },
+    customerActionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    stopCustomerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 9,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    stopCustomerBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+    },
+    blockedSection: {
+      marginTop: 18,
+      paddingTop: 14,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    toggleBlockedBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 6,
+    },
+    toggleBlockedBtnText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+      textDecorationLine: 'underline',
+    },
+    blockedList: {
+      marginTop: 10,
+      gap: 8,
+    },
+    blockedCustomerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceInput,
+      opacity: 0.85,
+    },
+    blockedBadgeText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+    },
+    unblockCustomerBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+      borderRadius: 8,
+      backgroundColor: colors.primarySoft,
+      borderWidth: 1,
+      borderColor: colors.primarySoftBorder,
+    },
+    unblockCustomerBtnText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
     },
     saveButton: {
       backgroundColor: colors.success,
