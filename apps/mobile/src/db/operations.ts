@@ -315,6 +315,24 @@ function mapCustomerFromDb(row: any): Customer {
   };
 }
 
+export const getAllCustomers = async (): Promise<Customer[]> => {
+  if (await isDemoModeActive()) {
+    const raw = await AsyncStorage.getItem(DEMO_CUSTOMERS_KEY);
+    const list: Customer[] = raw ? JSON.parse(raw) : [];
+    return [...list].sort((a, b) => b.currentBalance - a.currentBalance);
+  }
+
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('store_id', userId)
+    .order('current_balance', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapCustomerFromDb);
+};
+
 export const getCustomer = async (phone: string): Promise<Customer | undefined> => {
   const cleanPhone = phone.trim();
 
