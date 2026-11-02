@@ -30,6 +30,7 @@ import {
   BellOff,
   Bell,
   Search,
+  X,
 } from 'lucide-react-native';
 import {
   getStoreSettings,
@@ -448,7 +449,7 @@ export default function BonusSettingsScreen() {
             onPress={() => setActiveSubTab('SETTINGS')}
           >
             <SlidersHorizontal
-              size={17}
+              size={16}
               color={
                 activeSubTab === 'SETTINGS'
                   ? '#fff'
@@ -456,6 +457,7 @@ export default function BonusSettingsScreen() {
               }
             />
             <Text
+              numberOfLines={1}
               style={[
                 styles.subTabText,
                 activeSubTab === 'SETTINGS' && styles.subTabTextActive,
@@ -476,7 +478,7 @@ export default function BonusSettingsScreen() {
             }}
           >
             <Send
-              size={17}
+              size={16}
               color={
                 activeSubTab === 'OUTREACH'
                   ? '#fff'
@@ -484,6 +486,7 @@ export default function BonusSettingsScreen() {
               }
             />
             <Text
+              numberOfLines={1}
               style={[
                 styles.subTabText,
                 activeSubTab === 'OUTREACH' && styles.subTabTextActive,
@@ -1061,6 +1064,14 @@ export default function BonusSettingsScreen() {
                     placeholderTextColor={colors.placeholder}
                     keyboardType="phone-pad"
                   />
+                  {queueSearch.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => setQueueSearch('')}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <X size={17} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
 
@@ -1077,8 +1088,11 @@ export default function BonusSettingsScreen() {
                         sendOutreachSmsToCustomer(nextUnsentCustomer)
                       }
                     >
-                      <Send size={18} color="#fff" />
-                      <Text style={styles.sendNextButtonText}>
+                      <Send size={17} color="#fff" />
+                      <Text
+                        numberOfLines={1}
+                        style={styles.sendNextButtonText}
+                      >
                         {t.bonusSettings.sendNextBtn(
                           nextUnsentIndex,
                           filteredCustomers.length,
@@ -1126,24 +1140,25 @@ export default function BonusSettingsScreen() {
                             isSent && styles.customerQueueRowSent,
                           ]}
                         >
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.customerPhoneText}>
-                              {customer.phoneNumber}
-                            </Text>
-                            <View style={styles.customerMetaRow}>
+                          <View style={styles.customerInfoTopRow}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.customerPhoneText}>
+                                {customer.phoneNumber}
+                              </Text>
                               <Text style={styles.customerBalanceText}>
                                 {balanceLabel}
                               </Text>
-                              {availableBonuses > 0 && (
-                                <View style={styles.customerBonusPill}>
-                                  <Text style={styles.customerBonusPillText}>
-                                    {t.bonusSettings.customerBonusReadyBadge(
-                                      availableBonuses
-                                    )}
-                                  </Text>
-                                </View>
-                              )}
                             </View>
+
+                            {availableBonuses > 0 && (
+                              <View style={styles.customerBonusPill}>
+                                <Text style={styles.customerBonusPillText}>
+                                  {t.bonusSettings.customerBonusReadyBadge(
+                                    availableBonuses
+                                  )}
+                                </Text>
+                              </View>
+                            )}
                           </View>
 
                           <View style={styles.customerActionsRow}>
@@ -1154,7 +1169,10 @@ export default function BonusSettingsScreen() {
                               }
                             >
                               <BellOff size={13} color={colors.textMuted} />
-                              <Text style={styles.stopCustomerBtnText}>
+                              <Text
+                                numberOfLines={1}
+                                style={styles.stopCustomerBtnText}
+                              >
                                 {t.bonusSettings.stopBtnLabel}
                               </Text>
                             </TouchableOpacity>
@@ -1169,7 +1187,10 @@ export default function BonusSettingsScreen() {
                               {isSent ? (
                                 <>
                                   <Check size={14} color={colors.success} />
-                                  <Text style={styles.customerSendBtnTextSent}>
+                                  <Text
+                                    numberOfLines={1}
+                                    style={styles.customerSendBtnTextSent}
+                                  >
                                     {t.bonusSettings.customerSentStatus}
                                   </Text>
                                 </>
@@ -1179,7 +1200,10 @@ export default function BonusSettingsScreen() {
                                     size={13}
                                     color={colors.primaryStrongText}
                                   />
-                                  <Text style={styles.customerSendBtnText}>
+                                  <Text
+                                    numberOfLines={1}
+                                    style={styles.customerSendBtnText}
+                                  >
                                     {t.bonusSettings.customerSendSingleBtn}
                                   </Text>
                                 </>
@@ -1254,7 +1278,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       backgroundColor: colors.surface,
       borderRadius: 12,
-      padding: 4,
+      padding: 5,
       marginBottom: 18,
       borderWidth: 1,
       borderColor: colors.border,
@@ -1265,9 +1289,9 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 7,
+      gap: 6,
       paddingVertical: 11,
-      paddingHorizontal: 10,
+      paddingHorizontal: 14,
       borderRadius: 9,
     },
     subTabBtnActive: {
@@ -1277,6 +1301,7 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 14,
       fontWeight: '700',
       color: colors.textSecondary,
+      flexShrink: 1,
     },
     subTabTextActive: {
       color: '#fff',
@@ -1511,15 +1536,16 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       gap: 8,
       backgroundColor: colors.primary,
-      paddingVertical: 15,
-      paddingHorizontal: 16,
+      paddingVertical: 14,
+      paddingHorizontal: 18,
       borderRadius: 12,
       marginBottom: 16,
     },
     sendNextButtonText: {
       color: '#fff',
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '700',
+      flexShrink: 1,
     },
     allSentContainer: {
       alignItems: 'center',
@@ -1554,14 +1580,13 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '600',
     },
     customerQueueList: {
-      gap: 8,
+      gap: 10,
     },
     customerQueueRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: 12,
-      borderRadius: 10,
+      flexDirection: 'column',
+      gap: 10,
+      padding: 14,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.surfaceInput,
@@ -1569,11 +1594,17 @@ const createStyles = (colors: ThemeColors) =>
     customerQueueRowSent: {
       opacity: 0.65,
     },
+    customerInfoTopRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
     customerPhoneText: {
       fontSize: 16,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 2,
+      marginBottom: 3,
     },
     customerMetaRow: {
       flexDirection: 'row',
@@ -1588,22 +1619,24 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.primarySoft,
       borderWidth: 1,
       borderColor: colors.primarySoftBorder,
-      paddingHorizontal: 7,
-      paddingVertical: 2,
-      borderRadius: 10,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: 12,
     },
     customerBonusPillText: {
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '700',
       color: colors.primaryStrongText,
     },
     customerSendBtn: {
+      flex: 1.3,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
+      justifyContent: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 9,
       backgroundColor: colors.primarySoft,
       borderWidth: 1,
       borderColor: colors.primarySoftBorder,
@@ -1630,7 +1663,7 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.borderInput,
       borderRadius: 10,
       paddingHorizontal: 12,
-      paddingVertical: 9,
+      paddingVertical: 10,
       backgroundColor: colors.surfaceInput,
       marginBottom: 14,
     },
@@ -1643,15 +1676,17 @@ const createStyles = (colors: ThemeColors) =>
     customerActionsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: 8,
     },
     stopCustomerBtn: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 9,
-      paddingVertical: 8,
-      borderRadius: 8,
+      justifyContent: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      borderRadius: 9,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.surface,

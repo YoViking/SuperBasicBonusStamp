@@ -469,8 +469,8 @@ export const translations: Record<LanguageCode, Translations> = {
       savedTitle: 'Sparat!',
       savedMsg: 'Butiksprofilen, kassaläget och bonusreglerna har uppdaterats.',
       saveErrorMsg: 'Kunde inte spara inställningar: ',
-      tabSettings: 'Inställningar & Mallar',
-      tabOutreach: 'Utskick & Påminnelser',
+      tabSettings: 'Inställningar',
+      tabOutreach: 'Utskick & SMS',
       outreachFilterTitle: '1. Välj målgrupp',
       outreachFilterHelper:
         'Välj vilka kunder du vill skicka SMS till. Varje kund får ett eget SMS med sitt aktuella saldo.',
@@ -489,22 +489,25 @@ export const translations: Record<LanguageCode, Translations> = {
         'Hej! Vi vill bara påminna om att du har en bonus ({bonus}) att hämta ut hos {butik}. Varmt välkommen in!',
       defaultReminderCloseMsg:
         'Hej! Du har nu {saldo} hos {butik} och har bara {kvar_till_bonus} kvar till din bonus ({bonus}). Välkommen in!',
-      includeOptOutLabel: 'Lägg till "Svara STOPP för att avregistrera" i slutet',
+      includeOptOutLabel: 'Lägg till "Svara STOPP för att avregistrera"',
       optOutFooter: (storeName) =>
         `\n\nSvara STOPP om du inte vill ha fler utskick från ${storeName}.`,
-      outreachQueueTitle: (count) => `3. Snabbkö för utskick (${count} kunder)`,
+      outreachQueueTitle: (count) =>
+        count === 1
+          ? '3. Snabbkö för utskick (1 kund)'
+          : `3. Snabbkö för utskick (${count} kunder)`,
       outreachQueueHelper:
-        'Tryck på knappen för att öppna SMS-appen för en kund i taget (så undviks gruppchattar och varje kund får sitt eget saldo).',
+        'Öppnar SMS-appen för en kund i taget med kundens aktuella saldo.',
       sendNextBtn: (nextIndex, total, phone) =>
-        `Skicka till nästa (${nextIndex} av ${total}) – ${phone}`,
+        `Skicka nästa (${nextIndex}/${total}) • ${phone}`,
       allSentBadge: 'Alla kunder i urvalet har fått SMS!',
       resetQueueBtn: 'Börja om utskickskön',
       emptyFilterCustomers: 'Inga registrerade kunder matchar det valda filtret ännu.',
       customerSentStatus: 'Skickad',
       customerSendSingleBtn: 'Öppna SMS',
       customerBonusReadyBadge: (count) => `${count} bonus klar`,
-      searchQueuePlaceholder: 'Sök telefonnummer (t.ex. för att spärra vid STOPP)...',
-      stopBtnLabel: 'STOPP',
+      searchQueuePlaceholder: 'Sök telefonnummer...',
+      stopBtnLabel: 'Spärra (STOPP)',
       unblockBtnLabel: 'Tillåt igen',
       showBlockedBtn: (count) => `Visa spärrade nummer (${count} st)`,
       hideBlockedBtn: 'Dölj spärrade nummer',
@@ -765,8 +768,8 @@ export const translations: Record<LanguageCode, Translations> = {
       savedTitle: 'Saved!',
       savedMsg: 'Store profile, POS mode, and bonus rules have been updated.',
       saveErrorMsg: 'Could not save settings: ',
-      tabSettings: 'Settings & Templates',
-      tabOutreach: 'Campaigns & Reminders',
+      tabSettings: 'Settings',
+      tabOutreach: 'Campaigns & SMS',
       outreachFilterTitle: '1. Select Audience',
       outreachFilterHelper:
         'Choose which customers to message. Each customer receives an individual SMS with their current balance.',
@@ -785,22 +788,25 @@ export const translations: Record<LanguageCode, Translations> = {
         'Hi! Just a friendly reminder that you have a bonus ({bonus}) waiting for you at {store}. Welcome in!',
       defaultReminderCloseMsg:
         'Hi! You now have {balance} at {store} and only {remaining} left until your bonus ({bonus}). Welcome in!',
-      includeOptOutLabel: 'Add "Reply STOP to opt out" at the end',
+      includeOptOutLabel: 'Add "Reply STOP to opt out"',
       optOutFooter: (storeName) =>
         `\n\nReply STOP if you no longer wish to receive offers from ${storeName}.`,
-      outreachQueueTitle: (count) => `3. Quick-Send Queue (${count} customers)`,
+      outreachQueueTitle: (count) =>
+        count === 1
+          ? '3. Quick-Send Queue (1 customer)'
+          : `3. Quick-Send Queue (${count} customers)`,
       outreachQueueHelper:
-        'Tap the button to open your SMS app for one customer at a time (avoids group chats and includes each customer’s personal balance).',
+        'Opens your SMS app for one customer at a time with their personal balance.',
       sendNextBtn: (nextIndex, total, phone) =>
-        `Send to next (${nextIndex} of ${total}) – ${phone}`,
+        `Send next (${nextIndex}/${total}) • ${phone}`,
       allSentBadge: 'All customers in this selection have been messaged!',
       resetQueueBtn: 'Reset send queue',
       emptyFilterCustomers: 'No registered customers match the selected filter yet.',
       customerSentStatus: 'Sent',
       customerSendSingleBtn: 'Open SMS',
       customerBonusReadyBadge: (count) => `${count} bonus ready`,
-      searchQueuePlaceholder: 'Search phone number (e.g. to block on STOP)...',
-      stopBtnLabel: 'STOP',
+      searchQueuePlaceholder: 'Search phone number...',
+      stopBtnLabel: 'Block (STOP)',
       unblockBtnLabel: 'Allow again',
       showBlockedBtn: (count) => `Show blocked numbers (${count})`,
       hideBlockedBtn: 'Hide blocked numbers',
@@ -1061,8 +1067,8 @@ export const translations: Record<LanguageCode, Translations> = {
       savedTitle: 'Gespeichert!',
       savedMsg: 'Geschäftsprofil, Kassenmodus und Bonusregeln wurden aktualisiert.',
       saveErrorMsg: 'Einstellungen konnten nicht gespeichert werden: ',
-      tabSettings: 'Einstellungen & Vorlagen',
-      tabOutreach: 'Kampagnen & Erinnerungen',
+      tabSettings: 'Einstellungen',
+      tabOutreach: 'Kampagnen & SMS',
       outreachFilterTitle: '1. Zielgruppe wählen',
       outreachFilterHelper:
         'Wählen Sie aus, welchen Kunden Sie eine SMS senden möchten. Jeder Kunde erhält eine eigene SMS mit seinem aktuellen Guthaben.',
@@ -1081,22 +1087,25 @@ export const translations: Record<LanguageCode, Translations> = {
         'Hallo! Wir möchten Sie daran erinnern, dass noch ein Bonus ({bonus}) bei {laden} auf Sie wartet. Herzlich willkommen!',
       defaultReminderCloseMsg:
         'Hallo! Sie haben jetzt {guthaben} bei {laden} und es fehlen nur noch {rest} bis zu Ihrem Bonus ({bonus}). Bis bald!',
-      includeOptOutLabel: '„Antworten Sie mit STOP zum Abmelden“ am Ende anfügen',
+      includeOptOutLabel: '„Antworten Sie mit STOP zum Abmelden“ anfügen',
       optOutFooter: (storeName) =>
         `\n\nAntworten Sie mit STOP, wenn Sie keine weiteren Nachrichten von ${storeName} wünschen.`,
-      outreachQueueTitle: (count) => `3. Schnell-Warteschlange (${count} Kunden)`,
+      outreachQueueTitle: (count) =>
+        count === 1
+          ? '3. Warteschlange (1 Kunde)'
+          : `3. Warteschlange (${count} Kunden)`,
       outreachQueueHelper:
-        'Tippen Sie auf die Schaltfläche, um die SMS-App für jeweils einen Kunden zu öffnen (verhindert Gruppenchats und fügt das persönliche Guthaben ein).',
+        'Öffnet die SMS-App für jeweils einen Kunden mit persönlichem Guthaben.',
       sendNextBtn: (nextIndex, total, phone) =>
-        `An nächsten senden (${nextIndex} von ${total}) – ${phone}`,
+        `Nächster (${nextIndex}/${total}) • ${phone}`,
       allSentBadge: 'Alle Kunden in dieser Auswahl haben eine SMS erhalten!',
       resetQueueBtn: 'Warteschlange zurücksetzen',
       emptyFilterCustomers: 'Noch keine registrierten Kunden entsprechen dem gewählten Filter.',
       customerSentStatus: 'Gesendet',
       customerSendSingleBtn: 'SMS öffnen',
       customerBonusReadyBadge: (count) => `${count} Bonus bereit`,
-      searchQueuePlaceholder: 'Telefonnummer suchen (z. B. zum Sperren bei STOP)...',
-      stopBtnLabel: 'STOP',
+      searchQueuePlaceholder: 'Telefonnummer suchen...',
+      stopBtnLabel: 'Sperren (STOP)',
       unblockBtnLabel: 'Wieder erlauben',
       showBlockedBtn: (count) => `Gesperrte Nummern anzeigen (${count})`,
       hideBlockedBtn: 'Gesperrte Nummern ausblenden',
@@ -1360,8 +1369,8 @@ export const translations: Record<LanguageCode, Translations> = {
       savedTitle: '¡Guardado!',
       savedMsg: 'El perfil de la tienda, el modo de caja y las reglas de bono se han actualizado.',
       saveErrorMsg: 'No se pudieron guardar los ajustes: ',
-      tabSettings: 'Ajustes y Plantillas',
-      tabOutreach: 'Campañas y Recordatorios',
+      tabSettings: 'Ajustes',
+      tabOutreach: 'Campañas y SMS',
       outreachFilterTitle: '1. Elegir destinatarios',
       outreachFilterHelper:
         'Elige a qué clientes quieres enviar un SMS. Cada cliente recibirá su propio SMS con su saldo actual.',
@@ -1380,22 +1389,25 @@ export const translations: Record<LanguageCode, Translations> = {
         '¡Hola! Te recordamos que tienes un bono ({bonus}) listo para canjear en {tienda}. ¡Te esperamos!',
       defaultReminderCloseMsg:
         '¡Hola! Ahora tienes {saldo} en {tienda} y solo te faltan {restante} para tu bono ({bonus}). ¡Te esperamos!',
-      includeOptOutLabel: 'Añadir "Responde STOP para darte de baja" al final',
+      includeOptOutLabel: 'Añadir "Responde STOP para darte de baja"',
       optOutFooter: (storeName) =>
         `\n\nResponde STOP si no deseas recibir más mensajes de ${storeName}.`,
-      outreachQueueTitle: (count) => `3. Cola de envío rápido (${count} clientes)`,
+      outreachQueueTitle: (count) =>
+        count === 1
+          ? '3. Cola de envío (1 cliente)'
+          : `3. Cola de envío (${count} clientes)`,
       outreachQueueHelper:
-        'Pulsa el botón para abrir la app de SMS para un cliente a la vez (evita chats grupales e incluye el saldo personal de cada cliente).',
+        'Abre la app de SMS para un cliente a la vez con su saldo personal.',
       sendNextBtn: (nextIndex, total, phone) =>
-        `Enviar al siguiente (${nextIndex} de ${total}) – ${phone}`,
+        `Siguiente (${nextIndex}/${total}) • ${phone}`,
       allSentBadge: '¡Todos los clientes seleccionados han recibido su SMS!',
       resetQueueBtn: 'Reiniciar cola de envío',
       emptyFilterCustomers: 'Aún no hay clientes registrados que coincidan con este filtro.',
       customerSentStatus: 'Enviado',
       customerSendSingleBtn: 'Abrir SMS',
       customerBonusReadyBadge: (count) => `${count} bono listo`,
-      searchQueuePlaceholder: 'Buscar teléfono (p. ej. para bloquear con STOP)...',
-      stopBtnLabel: 'STOP',
+      searchQueuePlaceholder: 'Buscar teléfono...',
+      stopBtnLabel: 'Bloquear (STOP)',
       unblockBtnLabel: 'Permitir de nuevo',
       showBlockedBtn: (count) => `Mostrar números bloqueados (${count})`,
       hideBlockedBtn: 'Ocultar números bloqueados',
