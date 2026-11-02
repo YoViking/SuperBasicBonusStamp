@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import {
@@ -19,10 +20,19 @@ import {
   Smartphone,
   PartyPopper,
   Plus,
+  SlidersHorizontal,
+  Send,
+  Users,
+  Gift,
+  Sparkles,
+  Check,
+  RotateCcw,
 } from 'lucide-react-native';
 import {
   getStoreSettings,
   saveStoreSettings,
+  getAllCustomers,
+  Customer,
   BonusType,
   PosMode,
 } from '../db/operations';
@@ -35,12 +45,28 @@ import {
 } from '../services/smsFormatter';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
+import { translations } from '../i18n/translations';
+
+type SubTab = 'SETTINGS' | 'OUTREACH';
+type OutreachFilter = 'ALL' | 'HAS_BONUS' | 'CLOSE_TO_BONUS';
+
+function getAllDefaultOutreachTemplates(): Set<string> {
+  const set = new Set<string>();
+  for (const lang of Object.values(translations)) {
+    set.add(lang.bonusSettings.defaultCampaignMsg);
+    set.add(lang.bonusSettings.defaultReminderHasBonusMsg);
+    set.add(lang.bonusSettings.defaultReminderCloseMsg);
+  }
+  return set;
+}
 
 export default function BonusSettingsScreen() {
   const isFocused = useIsFocused();
   const { colors } = useTheme();
   const { language, currencySymbol: currency, t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>('SETTINGS');
 
   const [storeName, setStoreName] = useState(t.pos.defaultStoreName);
   const [bonusType, setBonusType] = useState<BonusType>('STAMPS');
@@ -59,6 +85,19 @@ export default function BonusSettingsScreen() {
     end: number;
   } | null>(null);
 
+  // States för Utskick & Påminnelser
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [outreachFilter, setOutreachFilter] = useState<OutreachFilter>('ALL');
+  const [outreachMessage, setOutreachMessage] = useState(
+    t.bonusSettings.defaultCampaignMsg
+  );
+  const [outreachSelection, setOutreachSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+  const [includeOptOut, setIncludeOptOut] = useState<boolean>(true);
+  const [sentCustomerIds, setSentCustomerIds] = useState<string[]>([]);
+
   const smsQuickTags = useMemo(
     () => [
       { label: t.sms.tagStoreLabel, tag: t.sms.tagStore },
@@ -72,6 +111,22 @@ export default function BonusSettingsScreen() {
     ],
     [bonusType, t]
   );
+
+  const outreachQuickTags = useMemo(
+    () => [
+      { label: t.sms.tagStoreLabel, tag: t.sms.tagStore },
+      { label: t.sms.tagBalanceLabel, tag: t.sms.tagBalance },
+      { label: t.sms.tagRemainingLabel, tag: t.sms.tagRemaining },
+      { label: t.sms.tagBonusLabel, tag: t.sms.tagBonus },
+    ],
+    [t]
+  );
+
+  const getDefaultOutreachTemplateForFilter = (filter: OutreachFilter) => {
+    if (filter === 'HAS_BONUS') return t.bonusSettings.defaultReminderHasBonusMsg;
+    if (filter === 'CLOSE_TO_BONUS') return t.bonusSettings.defaultReminderCloseMsg;
+    return t.bonusSettings.defaultCampaignMsg;
+  };
 
   const insertTag = (
     tag: string,
@@ -103,9 +158,12 @@ export default function BonusSettingsScreen() {
     }
   };
 
-  const loadSettings = async () => {
+  const loadSettingsAndCustomers = async () => {
     try {
-      const data = await getStoreSettings();
+      const [data, allCustomers] = await Promise.all([
+        getStoreSettings(),
+        getAllCustomers(),
+      ]);
       setStoreName(normalizeStoreName(data.storeName, language));
       setBonusType(data.bonusType);
       setPosMode(data.posMode);
@@ -120,8 +178,9 @@ export default function BonusSettingsScreen() {
       setBonusMessage(
         normalizeBonusTemplate(data.bonusMessage, data.bonusType, language)
       );
+      setCustomers(allCustomers);
     } catch (err) {
-      console.error('Kunde inte läsa butiksinställningar', err);
+      console.error('Kunde inte läsa butiksinställningar eller kunder', err);
     }
   };
 
@@ -134,13 +193,35 @@ export default function BonusSettingsScreen() {
     setBonusMessage((prev) =>
       normalizeBonusTemplate(prev, bonusType, language)
     );
+    setOutreachMessage((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed || getAllDefaultOutreachTemplates().has(trimmed)) {
+        return getDefaultOutreachTemplateForFilter(outreachFilter);
+      }
+      return prev;
+    });
   }, [language]);
 
   useEffect(() => {
     if (isFocused) {
-      loadSettings();
+      loadSettingsAndCustomers();
     }
   }, [isFocused, language]);
+
+  const handleSelectOutreachFilter = (nextFilter: OutreachFilter) => {
+    if (nextFilter === outreachFilter) return;
+    setOutreachFilter(nextFilter);
+    setSentCustomerIds([]);
+    setIncludeOptOut(nextFilter === 'ALL');
+
+    setOutreachMessage((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed || getAllDefaultOutreachTemplates().has(trimmed)) {
+        return getDefaultOutreachTemplateForFilter(nextFilter);
+      }
+      return prev;
+    });
+  };
 
   const handleSelectBonusType = (nextType: BonusType) => {
     if (nextType === bonusType) return;
@@ -185,8 +266,10 @@ export default function BonusSettingsScreen() {
     }
   };
 
-  const numThreshold =
-    parseFloat(threshold) || (bonusType === 'STAMPS' ? 10 : 1000);
+  const numThreshold = Math.max(
+    1,
+    parseFloat(threshold) || (bonusType === 'STAMPS' ? 10 : 1000)
+  );
   const numReward =
     parseFloat(rewardAmount) || (bonusType === 'STAMPS' ? 1 : 100);
 
@@ -220,6 +303,89 @@ export default function BonusSettingsScreen() {
     currencySymbol: currency,
   });
 
+  // Filtrera kunder för Utskick & Påminnelser
+  const isCustomerCloseToBonus = (c: Customer) => {
+    const progress = c.currentBalance % numThreshold;
+    if (progress <= 0) return false;
+    const remaining = numThreshold - progress;
+    if (bonusType === 'STAMPS') {
+      const closeLimit = Math.max(1, Math.min(3, Math.floor(numThreshold * 0.3)));
+      return remaining <= closeLimit;
+    }
+    return progress >= numThreshold * 0.7;
+  };
+
+  const hasBonusCustomers = useMemo(
+    () => customers.filter((c) => c.currentBalance >= numThreshold),
+    [customers, numThreshold]
+  );
+
+  const closeToBonusCustomers = useMemo(
+    () => customers.filter(isCustomerCloseToBonus),
+    [customers, numThreshold, bonusType]
+  );
+
+  const filteredCustomers = useMemo(() => {
+    if (outreachFilter === 'HAS_BONUS') return hasBonusCustomers;
+    if (outreachFilter === 'CLOSE_TO_BONUS') return closeToBonusCustomers;
+    return customers;
+  }, [outreachFilter, customers, hasBonusCustomers, closeToBonusCustomers]);
+
+  const formatCustomerOutreachSms = (customer?: Customer) => {
+    const balance = customer ? customer.currentBalance : sampleProgress;
+    const progress = balance % numThreshold;
+    const hasFullBonus = balance >= numThreshold && progress === 0;
+    const effectiveProgress = hasFullBonus ? numThreshold : progress;
+    const remaining = hasFullBonus
+      ? 0
+      : Math.max(0, numThreshold - effectiveProgress);
+
+    let msg = formatSmsMessage(outreachMessage, {
+      amount: 1,
+      remaining,
+      reward: numReward,
+      threshold: numThreshold,
+      storeName,
+      rewardDescription,
+      currentProgress: effectiveProgress,
+      bonusType,
+      language,
+      currencySymbol: currency,
+    });
+
+    if (includeOptOut) {
+      const cleanStore = storeName.trim() || t.pos.defaultStoreName;
+      msg += t.bonusSettings.optOutFooter(cleanStore);
+    }
+
+    return msg;
+  };
+
+  const previewOutreach = formatCustomerOutreachSms(filteredCustomers[0]);
+
+  const sendOutreachSmsToCustomer = (customer: Customer) => {
+    const msg = formatCustomerOutreachSms(customer);
+    const url = `sms:${customer.phoneNumber}${
+      Platform.OS === 'ios' ? '&' : '?'
+    }body=${encodeURIComponent(msg)}`;
+    Linking.openURL(url);
+    setSentCustomerIds((prev) =>
+      prev.includes(customer.id) ? prev : [...prev, customer.id]
+    );
+  };
+
+  const nextUnsentCustomer = useMemo(
+    () => filteredCustomers.find((c) => !sentCustomerIds.includes(c.id)),
+    [filteredCustomers, sentCustomerIds]
+  );
+
+  const nextUnsentIndex = useMemo(() => {
+    if (!nextUnsentCustomer) return filteredCustomers.length;
+    return (
+      filteredCustomers.findIndex((c) => c.id === nextUnsentCustomer.id) + 1
+    );
+  }, [filteredCustomers, nextUnsentCustomer]);
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -233,341 +399,733 @@ export default function BonusSettingsScreen() {
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets={true}
       >
-        {/* 1. BUTIKSPROFIL & KASSALÄGE */}
-        <View style={styles.card}>
-          <Text style={styles.sectionHeader}>{t.bonusSettings.section1Title}</Text>
-
-          <Text style={styles.label}>{t.bonusSettings.storeNameLabel}</Text>
-          <TextInput
-            style={styles.input}
-            value={storeName}
-            onChangeText={setStoreName}
-            placeholder={t.bonusSettings.storeNamePlaceholder}
-            placeholderTextColor={colors.placeholder}
-          />
-
-          <Text style={styles.label}>{t.bonusSettings.posModeLabel}</Text>
-          <View style={styles.toggleRow}>
-            <TouchableOpacity
+        {/* TOPP-SWITCH: INSTÄLLNINGAR & MALLAR | UTSKICK & PÅMINNELSER */}
+        <View style={styles.subTabRow}>
+          <TouchableOpacity
+            style={[
+              styles.subTabBtn,
+              activeSubTab === 'SETTINGS' && styles.subTabBtnActive,
+            ]}
+            onPress={() => setActiveSubTab('SETTINGS')}
+          >
+            <SlidersHorizontal
+              size={17}
+              color={
+                activeSubTab === 'SETTINGS'
+                  ? '#fff'
+                  : colors.textSecondary
+              }
+            />
+            <Text
               style={[
-                styles.modeCard,
-                posMode === 'QUICK' && styles.modeCardActive,
+                styles.subTabText,
+                activeSubTab === 'SETTINGS' && styles.subTabTextActive,
               ]}
-              onPress={() => setPosMode('QUICK')}
             >
-              <View style={styles.modeIconWrapper}>
-                <Zap
-                  size={26}
-                  color={
-                    posMode === 'QUICK'
-                      ? colors.primaryStrongText
-                      : colors.textSecondary
-                  }
-                />
-              </View>
-              <Text
-                style={[
-                  styles.modeTitle,
-                  posMode === 'QUICK' && styles.modeTitleActive,
-                ]}
-              >
-                {t.bonusSettings.quickModeTitle}
-              </Text>
-              <Text style={styles.modeDesc}>{t.bonusSettings.quickModeDesc}</Text>
-            </TouchableOpacity>
+              {t.bonusSettings.tabSettings}
+            </Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
+          <TouchableOpacity
+            style={[
+              styles.subTabBtn,
+              activeSubTab === 'OUTREACH' && styles.subTabBtnActive,
+            ]}
+            onPress={() => {
+              setActiveSubTab('OUTREACH');
+              loadSettingsAndCustomers();
+            }}
+          >
+            <Send
+              size={17}
+              color={
+                activeSubTab === 'OUTREACH'
+                  ? '#fff'
+                  : colors.textSecondary
+              }
+            />
+            <Text
               style={[
-                styles.modeCard,
-                posMode === 'ARTICLES' && styles.modeCardActive,
+                styles.subTabText,
+                activeSubTab === 'OUTREACH' && styles.subTabTextActive,
               ]}
-              onPress={() => setPosMode('ARTICLES')}
             >
-              <View style={styles.modeIconWrapper}>
-                <ShoppingCart
-                  size={26}
-                  color={
-                    posMode === 'ARTICLES'
-                      ? colors.primaryStrongText
-                      : colors.textSecondary
-                  }
-                />
-              </View>
-              <Text
-                style={[
-                  styles.modeTitle,
-                  posMode === 'ARTICLES' && styles.modeTitleActive,
-                ]}
-              >
-                {t.bonusSettings.articlesModeTitle}
-              </Text>
-              <Text style={styles.modeDesc}>{t.bonusSettings.articlesModeDesc}</Text>
-            </TouchableOpacity>
-          </View>
+              {t.bonusSettings.tabOutreach}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* 2. BONUSMODELL */}
-        <View style={styles.card}>
-          <Text style={styles.sectionHeader}>{t.bonusSettings.section2Title}</Text>
-          <Text style={styles.helperText}>{t.bonusSettings.section2Helper}</Text>
+        {activeSubTab === 'SETTINGS' ? (
+          <>
+            {/* 1. BUTIKSPROFIL & KASSALÄGE */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeader}>{t.bonusSettings.section1Title}</Text>
 
-          <View style={styles.toggleRow}>
-            <TouchableOpacity
-              style={[
-                styles.modeCard,
-                bonusType === 'STAMPS' && styles.modeCardActive,
-              ]}
-              onPress={() => handleSelectBonusType('STAMPS')}
-            >
-              <View style={styles.modeIconWrapper}>
-                <Star
-                  size={26}
-                  color={
-                    bonusType === 'STAMPS'
-                      ? colors.primaryStrongText
-                      : colors.textSecondary
-                  }
-                />
-              </View>
-              <Text
-                style={[
-                  styles.modeTitle,
-                  bonusType === 'STAMPS' && styles.modeTitleActive,
-                ]}
-              >
-                {t.bonusSettings.stampCardTitle}
-              </Text>
-              <Text style={styles.modeDesc}>{t.bonusSettings.stampCardDesc}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.modeCard,
-                bonusType === 'POINTS' && styles.modeCardActive,
-              ]}
-              onPress={() => handleSelectBonusType('POINTS')}
-            >
-              <View style={styles.modeIconWrapper}>
-                <Coins
-                  size={26}
-                  color={
-                    bonusType === 'POINTS'
-                      ? colors.primaryStrongText
-                      : colors.textSecondary
-                  }
-                />
-              </View>
-              <Text
-                style={[
-                  styles.modeTitle,
-                  bonusType === 'POINTS' && styles.modeTitleActive,
-                ]}
-              >
-                {t.bonusSettings.pointsTitle}
-              </Text>
-              <Text style={styles.modeDesc}>
-                {t.bonusSettings.pointsDesc(currency)}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {bonusType === 'STAMPS' ? (
-            <View style={{ marginTop: 12 }}>
-              <Text style={styles.label}>{t.bonusSettings.stampsThresholdLabel}</Text>
+              <Text style={styles.label}>{t.bonusSettings.storeNameLabel}</Text>
               <TextInput
                 style={styles.input}
-                value={threshold}
-                onChangeText={setThreshold}
-                keyboardType="numeric"
-                placeholder="10"
+                value={storeName}
+                onChangeText={setStoreName}
+                placeholder={t.bonusSettings.storeNamePlaceholder}
                 placeholderTextColor={colors.placeholder}
               />
 
-              <Text style={styles.label}>
-                {t.bonusSettings.stampsRewardDescLabel}
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={rewardDescription}
-                onChangeText={setRewardDescription}
-                placeholder={t.bonusSettings.stampsRewardDescPlaceholder}
-                placeholderTextColor={colors.placeholder}
-              />
+              <Text style={styles.label}>{t.bonusSettings.posModeLabel}</Text>
+              <View style={styles.toggleRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    posMode === 'QUICK' && styles.modeCardActive,
+                  ]}
+                  onPress={() => setPosMode('QUICK')}
+                >
+                  <View style={styles.modeIconWrapper}>
+                    <Zap
+                      size={26}
+                      color={
+                        posMode === 'QUICK'
+                          ? colors.primaryStrongText
+                          : colors.textSecondary
+                      }
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.modeTitle,
+                      posMode === 'QUICK' && styles.modeTitleActive,
+                    ]}
+                  >
+                    {t.bonusSettings.quickModeTitle}
+                  </Text>
+                  <Text style={styles.modeDesc}>{t.bonusSettings.quickModeDesc}</Text>
+                </TouchableOpacity>
 
-              {posMode === 'ARTICLES' && (
-                <>
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    posMode === 'ARTICLES' && styles.modeCardActive,
+                  ]}
+                  onPress={() => setPosMode('ARTICLES')}
+                >
+                  <View style={styles.modeIconWrapper}>
+                    <ShoppingCart
+                      size={26}
+                      color={
+                        posMode === 'ARTICLES'
+                          ? colors.primaryStrongText
+                          : colors.textSecondary
+                      }
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.modeTitle,
+                      posMode === 'ARTICLES' && styles.modeTitleActive,
+                    ]}
+                  >
+                    {t.bonusSettings.articlesModeTitle}
+                  </Text>
+                  <Text style={styles.modeDesc}>{t.bonusSettings.articlesModeDesc}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 2. BONUSMODELL */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeader}>{t.bonusSettings.section2Title}</Text>
+              <Text style={styles.helperText}>{t.bonusSettings.section2Helper}</Text>
+
+              <View style={styles.toggleRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    bonusType === 'STAMPS' && styles.modeCardActive,
+                  ]}
+                  onPress={() => handleSelectBonusType('STAMPS')}
+                >
+                  <View style={styles.modeIconWrapper}>
+                    <Star
+                      size={26}
+                      color={
+                        bonusType === 'STAMPS'
+                          ? colors.primaryStrongText
+                          : colors.textSecondary
+                      }
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.modeTitle,
+                      bonusType === 'STAMPS' && styles.modeTitleActive,
+                    ]}
+                  >
+                    {t.bonusSettings.stampCardTitle}
+                  </Text>
+                  <Text style={styles.modeDesc}>{t.bonusSettings.stampCardDesc}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    bonusType === 'POINTS' && styles.modeCardActive,
+                  ]}
+                  onPress={() => handleSelectBonusType('POINTS')}
+                >
+                  <View style={styles.modeIconWrapper}>
+                    <Coins
+                      size={26}
+                      color={
+                        bonusType === 'POINTS'
+                          ? colors.primaryStrongText
+                          : colors.textSecondary
+                      }
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.modeTitle,
+                      bonusType === 'POINTS' && styles.modeTitleActive,
+                    ]}
+                  >
+                    {t.bonusSettings.pointsTitle}
+                  </Text>
+                  <Text style={styles.modeDesc}>
+                    {t.bonusSettings.pointsDesc(currency)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {bonusType === 'STAMPS' ? (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={styles.label}>{t.bonusSettings.stampsThresholdLabel}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={threshold}
+                    onChangeText={setThreshold}
+                    keyboardType="numeric"
+                    placeholder="10"
+                    placeholderTextColor={colors.placeholder}
+                  />
+
                   <Text style={styles.label}>
-                    {t.bonusSettings.stampsDiscountValueLabel(currency)}
+                    {t.bonusSettings.stampsRewardDescLabel}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    value={rewardDescription}
+                    onChangeText={setRewardDescription}
+                    placeholder={t.bonusSettings.stampsRewardDescPlaceholder}
+                    placeholderTextColor={colors.placeholder}
+                  />
+
+                  {posMode === 'ARTICLES' && (
+                    <>
+                      <Text style={styles.label}>
+                        {t.bonusSettings.stampsDiscountValueLabel(currency)}
+                      </Text>
+                      <TextInput
+                        style={styles.input}
+                        value={rewardAmount}
+                        onChangeText={setRewardAmount}
+                        keyboardType="numeric"
+                        placeholder="45"
+                        placeholderTextColor={colors.placeholder}
+                      />
+                    </>
+                  )}
+                </View>
+              ) : (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={styles.label}>
+                    {t.bonusSettings.pointsThresholdLabel(currency)}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    value={threshold}
+                    onChangeText={setThreshold}
+                    keyboardType="numeric"
+                    placeholder="1000"
+                    placeholderTextColor={colors.placeholder}
+                  />
+
+                  <Text style={styles.label}>
+                    {t.bonusSettings.pointsRewardLabel(currency)}
                   </Text>
                   <TextInput
                     style={styles.input}
                     value={rewardAmount}
                     onChangeText={setRewardAmount}
                     keyboardType="numeric"
-                    placeholder="45"
+                    placeholder="100"
                     placeholderTextColor={colors.placeholder}
                   />
+                </View>
+              )}
+            </View>
+
+            {/* 3. SMS-MALL VID VANLIGT KÖP / STÄMPEL */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeader}>{t.bonusSettings.section3Title}</Text>
+              <Text style={styles.helperText}>{t.bonusSettings.section3Helper}</Text>
+
+              <View style={styles.tagChipsRow}>
+                {smsQuickTags.map((item) => (
+                  <TouchableOpacity
+                    key={item.tag}
+                    style={styles.tagChip}
+                    onPress={() =>
+                      insertTag(
+                        item.tag,
+                        purchaseMessage,
+                        setPurchaseMessage,
+                        purchaseSelection,
+                        setPurchaseSelection
+                      )
+                    }
+                  >
+                    <Plus size={13} color={colors.primaryStrongText} />
+                    <Text style={styles.tagChipText}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TextInput
+                style={styles.textArea}
+                value={purchaseMessage}
+                onChangeText={setPurchaseMessage}
+                onSelectionChange={(e) =>
+                  setPurchaseSelection(e.nativeEvent.selection)
+                }
+                multiline
+                numberOfLines={4}
+                placeholder={t.bonusSettings.purchaseTemplatePlaceholder}
+                placeholderTextColor={colors.placeholder}
+              />
+
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={() =>
+                  setPurchaseMessage(
+                    bonusType === 'STAMPS'
+                      ? t.sms.defaultStampPurchase
+                      : t.sms.defaultPointsPurchase
+                  )
+                }
+              >
+                <Text style={styles.resetButtonText}>
+                  {t.bonusSettings.resetTemplateBtn}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.previewBox}>
+                <View style={styles.previewTitleRow}>
+                  <Smartphone size={15} color={colors.primaryStrongText} />
+                  <Text style={styles.previewTitle}>{t.bonusSettings.previewLabel}</Text>
+                </View>
+                <Text style={styles.previewText}>{previewPurchase}</Text>
+              </View>
+            </View>
+
+            {/* 4. SMS-MALL VID UPPNÅDD BONUS */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeader}>{t.bonusSettings.section4Title}</Text>
+              <Text style={styles.helperText}>{t.bonusSettings.section4Helper}</Text>
+
+              <View style={styles.tagChipsRow}>
+                {smsQuickTags.map((item) => (
+                  <TouchableOpacity
+                    key={item.tag}
+                    style={styles.tagChip}
+                    onPress={() =>
+                      insertTag(
+                        item.tag,
+                        bonusMessage,
+                        setBonusMessage,
+                        bonusSelection,
+                        setBonusSelection
+                      )
+                    }
+                  >
+                    <Plus size={13} color={colors.primaryStrongText} />
+                    <Text style={styles.tagChipText}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TextInput
+                style={styles.textArea}
+                value={bonusMessage}
+                onChangeText={setBonusMessage}
+                onSelectionChange={(e) =>
+                  setBonusSelection(e.nativeEvent.selection)
+                }
+                multiline
+                numberOfLines={4}
+                placeholder={t.bonusSettings.bonusTemplatePlaceholder}
+                placeholderTextColor={colors.placeholder}
+              />
+
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={() =>
+                  setBonusMessage(
+                    bonusType === 'STAMPS'
+                      ? t.sms.defaultStampBonus
+                      : t.sms.defaultPointsBonus
+                  )
+                }
+              >
+                <Text style={styles.resetButtonText}>
+                  {t.bonusSettings.resetTemplateBtn}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.previewBox}>
+                <View style={styles.previewTitleRow}>
+                  <PartyPopper size={15} color={colors.primaryStrongText} />
+                  <Text style={styles.previewTitle}>{t.bonusSettings.previewLabel}</Text>
+                </View>
+                <Text style={styles.previewText}>{previewBonus}</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <Text style={styles.saveButtonText}>{t.bonusSettings.saveAllBtn}</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {/* 1. VÄLJ MÅLGRUPP */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeader}>
+                {t.bonusSettings.outreachFilterTitle}
+              </Text>
+              <Text style={styles.helperText}>
+                {t.bonusSettings.outreachFilterHelper}
+              </Text>
+
+              <View style={styles.filterCardsColumn}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterCard,
+                    outreachFilter === 'ALL' && styles.modeCardActive,
+                  ]}
+                  onPress={() => handleSelectOutreachFilter('ALL')}
+                >
+                  <View style={styles.filterCardLeft}>
+                    <Users
+                      size={22}
+                      color={
+                        outreachFilter === 'ALL'
+                          ? colors.primaryStrongText
+                          : colors.textSecondary
+                      }
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.filterCardTitle,
+                          outreachFilter === 'ALL' && styles.modeTitleActive,
+                        ]}
+                      >
+                        {t.bonusSettings.filterAllTitle}
+                      </Text>
+                      <Text style={styles.filterCardDesc}>
+                        {t.bonusSettings.filterAllDesc}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>{customers.length}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.filterCard,
+                    outreachFilter === 'HAS_BONUS' && styles.modeCardActive,
+                  ]}
+                  onPress={() => handleSelectOutreachFilter('HAS_BONUS')}
+                >
+                  <View style={styles.filterCardLeft}>
+                    <Gift
+                      size={22}
+                      color={
+                        outreachFilter === 'HAS_BONUS'
+                          ? colors.primaryStrongText
+                          : colors.textSecondary
+                      }
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.filterCardTitle,
+                          outreachFilter === 'HAS_BONUS' && styles.modeTitleActive,
+                        ]}
+                      >
+                        {t.bonusSettings.filterHasBonusTitle}
+                      </Text>
+                      <Text style={styles.filterCardDesc}>
+                        {t.bonusSettings.filterHasBonusDesc}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>
+                      {hasBonusCustomers.length}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.filterCard,
+                    outreachFilter === 'CLOSE_TO_BONUS' && styles.modeCardActive,
+                  ]}
+                  onPress={() => handleSelectOutreachFilter('CLOSE_TO_BONUS')}
+                >
+                  <View style={styles.filterCardLeft}>
+                    <Sparkles
+                      size={22}
+                      color={
+                        outreachFilter === 'CLOSE_TO_BONUS'
+                          ? colors.primaryStrongText
+                          : colors.textSecondary
+                      }
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.filterCardTitle,
+                          outreachFilter === 'CLOSE_TO_BONUS' &&
+                            styles.modeTitleActive,
+                        ]}
+                      >
+                        {t.bonusSettings.filterCloseToBonusTitle}
+                      </Text>
+                      <Text style={styles.filterCardDesc}>
+                        {t.bonusSettings.filterCloseToBonusDesc}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.countBadge}>
+                    <Text style={styles.countBadgeText}>
+                      {closeToBonusCustomers.length}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 2. MEDDELANDE */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeader}>
+                {t.bonusSettings.outreachMessageTitle}
+              </Text>
+              <Text style={styles.helperText}>
+                {t.bonusSettings.outreachMessageHelper}
+              </Text>
+
+              <View style={styles.tagChipsRow}>
+                {outreachQuickTags.map((item) => (
+                  <TouchableOpacity
+                    key={item.tag}
+                    style={styles.tagChip}
+                    onPress={() =>
+                      insertTag(
+                        item.tag,
+                        outreachMessage,
+                        setOutreachMessage,
+                        outreachSelection,
+                        setOutreachSelection
+                      )
+                    }
+                  >
+                    <Plus size={13} color={colors.primaryStrongText} />
+                    <Text style={styles.tagChipText}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TextInput
+                style={styles.textArea}
+                value={outreachMessage}
+                onChangeText={setOutreachMessage}
+                onSelectionChange={(e) =>
+                  setOutreachSelection(e.nativeEvent.selection)
+                }
+                multiline
+                numberOfLines={4}
+                placeholderTextColor={colors.placeholder}
+              />
+
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={() =>
+                  setOutreachMessage(
+                    getDefaultOutreachTemplateForFilter(outreachFilter)
+                  )
+                }
+              >
+                <Text style={styles.resetButtonText}>
+                  {t.bonusSettings.resetTemplateBtn}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.optOutRow}
+                onPress={() => setIncludeOptOut((prev) => !prev)}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    includeOptOut && styles.checkboxChecked,
+                  ]}
+                >
+                  {includeOptOut && <Check size={14} color="#fff" />}
+                </View>
+                <Text style={styles.optOutLabel}>
+                  {t.bonusSettings.includeOptOutLabel}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.previewBox}>
+                <View style={styles.previewTitleRow}>
+                  <Smartphone size={15} color={colors.primaryStrongText} />
+                  <Text style={styles.previewTitle}>
+                    {t.bonusSettings.previewLabel}
+                  </Text>
+                </View>
+                <Text style={styles.previewText}>{previewOutreach}</Text>
+              </View>
+            </View>
+
+            {/* 3. SNABBKÖ FÖR UTSKICK */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeader}>
+                {t.bonusSettings.outreachQueueTitle(filteredCustomers.length)}
+              </Text>
+              <Text style={styles.helperText}>
+                {t.bonusSettings.outreachQueueHelper}
+              </Text>
+
+              {filteredCustomers.length === 0 ? (
+                <Text style={styles.emptyQueueText}>
+                  {t.bonusSettings.emptyFilterCustomers}
+                </Text>
+              ) : (
+                <>
+                  {nextUnsentCustomer ? (
+                    <TouchableOpacity
+                      style={styles.sendNextButton}
+                      onPress={() =>
+                        sendOutreachSmsToCustomer(nextUnsentCustomer)
+                      }
+                    >
+                      <Send size={18} color="#fff" />
+                      <Text style={styles.sendNextButtonText}>
+                        {t.bonusSettings.sendNextBtn(
+                          nextUnsentIndex,
+                          filteredCustomers.length,
+                          nextUnsentCustomer.phoneNumber
+                        )}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.allSentContainer}>
+                      <View style={styles.allSentBadge}>
+                        <Check size={18} color="#fff" />
+                        <Text style={styles.allSentText}>
+                          {t.bonusSettings.allSentBadge}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.resetQueueBtn}
+                        onPress={() => setSentCustomerIds([])}
+                      >
+                        <RotateCcw size={15} color={colors.primaryStrongText} />
+                        <Text style={styles.resetQueueBtnText}>
+                          {t.bonusSettings.resetQueueBtn}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  <View style={styles.customerQueueList}>
+                    {filteredCustomers.map((customer) => {
+                      const isSent = sentCustomerIds.includes(customer.id);
+                      const availableBonuses = Math.floor(
+                        customer.currentBalance / numThreshold
+                      );
+                      const progress = customer.currentBalance % numThreshold;
+                      const balanceLabel =
+                        bonusType === 'STAMPS'
+                          ? `${progress} ${t.sms.ofWord} ${numThreshold} ${t.sms.stampPlural}`
+                          : `${progress} ${t.sms.ofWord} ${numThreshold} ${currency}`;
+
+                      return (
+                        <View
+                          key={customer.id}
+                          style={[
+                            styles.customerQueueRow,
+                            isSent && styles.customerQueueRowSent,
+                          ]}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.customerPhoneText}>
+                              {customer.phoneNumber}
+                            </Text>
+                            <View style={styles.customerMetaRow}>
+                              <Text style={styles.customerBalanceText}>
+                                {balanceLabel}
+                              </Text>
+                              {availableBonuses > 0 && (
+                                <View style={styles.customerBonusPill}>
+                                  <Text style={styles.customerBonusPillText}>
+                                    {t.bonusSettings.customerBonusReadyBadge(
+                                      availableBonuses
+                                    )}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.customerSendBtn,
+                              isSent && styles.customerSendBtnSent,
+                            ]}
+                            onPress={() => sendOutreachSmsToCustomer(customer)}
+                          >
+                            {isSent ? (
+                              <>
+                                <Check size={14} color={colors.success} />
+                                <Text style={styles.customerSendBtnTextSent}>
+                                  {t.bonusSettings.customerSentStatus}
+                                </Text>
+                              </>
+                            ) : (
+                              <>
+                                <Send
+                                  size={13}
+                                  color={colors.primaryStrongText}
+                                />
+                                <Text style={styles.customerSendBtnText}>
+                                  {t.bonusSettings.customerSendSingleBtn}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </View>
                 </>
               )}
             </View>
-          ) : (
-            <View style={{ marginTop: 12 }}>
-              <Text style={styles.label}>
-                {t.bonusSettings.pointsThresholdLabel(currency)}
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={threshold}
-                onChangeText={setThreshold}
-                keyboardType="numeric"
-                placeholder="1000"
-                placeholderTextColor={colors.placeholder}
-              />
-
-              <Text style={styles.label}>
-                {t.bonusSettings.pointsRewardLabel(currency)}
-              </Text>
-              <TextInput
-                style={styles.input}
-                value={rewardAmount}
-                onChangeText={setRewardAmount}
-                keyboardType="numeric"
-                placeholder="100"
-                placeholderTextColor={colors.placeholder}
-              />
-            </View>
-          )}
-        </View>
-
-        {/* 3. SMS-MALL VID VANLIGT KÖP / STÄMPEL */}
-        <View style={styles.card}>
-          <Text style={styles.sectionHeader}>{t.bonusSettings.section3Title}</Text>
-          <Text style={styles.helperText}>{t.bonusSettings.section3Helper}</Text>
-
-          <View style={styles.tagChipsRow}>
-            {smsQuickTags.map((item) => (
-              <TouchableOpacity
-                key={item.tag}
-                style={styles.tagChip}
-                onPress={() =>
-                  insertTag(
-                    item.tag,
-                    purchaseMessage,
-                    setPurchaseMessage,
-                    purchaseSelection,
-                    setPurchaseSelection
-                  )
-                }
-              >
-                <Plus size={13} color={colors.primaryStrongText} />
-                <Text style={styles.tagChipText}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <TextInput
-            style={styles.textArea}
-            value={purchaseMessage}
-            onChangeText={setPurchaseMessage}
-            onSelectionChange={(e) =>
-              setPurchaseSelection(e.nativeEvent.selection)
-            }
-            multiline
-            numberOfLines={4}
-            placeholder={t.bonusSettings.purchaseTemplatePlaceholder}
-            placeholderTextColor={colors.placeholder}
-          />
-
-          <TouchableOpacity
-            style={styles.resetButton}
-            onPress={() =>
-              setPurchaseMessage(
-                bonusType === 'STAMPS'
-                  ? t.sms.defaultStampPurchase
-                  : t.sms.defaultPointsPurchase
-              )
-            }
-          >
-            <Text style={styles.resetButtonText}>
-              {t.bonusSettings.resetTemplateBtn}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.previewBox}>
-            <View style={styles.previewTitleRow}>
-              <Smartphone size={15} color={colors.primaryStrongText} />
-              <Text style={styles.previewTitle}>{t.bonusSettings.previewLabel}</Text>
-            </View>
-            <Text style={styles.previewText}>{previewPurchase}</Text>
-          </View>
-        </View>
-
-        {/* 4. SMS-MALL VID UPPNÅDD BONUS */}
-        <View style={styles.card}>
-          <Text style={styles.sectionHeader}>{t.bonusSettings.section4Title}</Text>
-          <Text style={styles.helperText}>{t.bonusSettings.section4Helper}</Text>
-
-          <View style={styles.tagChipsRow}>
-            {smsQuickTags.map((item) => (
-              <TouchableOpacity
-                key={item.tag}
-                style={styles.tagChip}
-                onPress={() =>
-                  insertTag(
-                    item.tag,
-                    bonusMessage,
-                    setBonusMessage,
-                    bonusSelection,
-                    setBonusSelection
-                  )
-                }
-              >
-                <Plus size={13} color={colors.primaryStrongText} />
-                <Text style={styles.tagChipText}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <TextInput
-            style={styles.textArea}
-            value={bonusMessage}
-            onChangeText={setBonusMessage}
-            onSelectionChange={(e) =>
-              setBonusSelection(e.nativeEvent.selection)
-            }
-            multiline
-            numberOfLines={4}
-            placeholder={t.bonusSettings.bonusTemplatePlaceholder}
-            placeholderTextColor={colors.placeholder}
-          />
-
-          <TouchableOpacity
-            style={styles.resetButton}
-            onPress={() =>
-              setBonusMessage(
-                bonusType === 'STAMPS'
-                  ? t.sms.defaultStampBonus
-                  : t.sms.defaultPointsBonus
-              )
-            }
-          >
-            <Text style={styles.resetButtonText}>
-              {t.bonusSettings.resetTemplateBtn}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.previewBox}>
-            <View style={styles.previewTitleRow}>
-              <PartyPopper size={15} color={colors.primaryStrongText} />
-              <Text style={styles.previewTitle}>{t.bonusSettings.previewLabel}</Text>
-            </View>
-            <Text style={styles.previewText}>{previewBonus}</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>{t.bonusSettings.saveAllBtn}</Text>
-        </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -576,6 +1134,37 @@ export default function BonusSettingsScreen() {
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background, padding: 18 },
+    subTabRow: {
+      flexDirection: 'row',
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 4,
+      marginBottom: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 6,
+    },
+    subTabBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      paddingVertical: 11,
+      paddingHorizontal: 10,
+      borderRadius: 9,
+    },
+    subTabBtnActive: {
+      backgroundColor: colors.primary,
+    },
+    subTabText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    subTabTextActive: {
+      color: '#fff',
+    },
     card: {
       backgroundColor: colors.surface,
       borderRadius: 14,
@@ -656,6 +1245,49 @@ const createStyles = (colors: ThemeColors) =>
       textAlign: 'center',
       lineHeight: 16,
     },
+    filterCardsColumn: {
+      gap: 10,
+    },
+    filterCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderRadius: 12,
+      padding: 14,
+      backgroundColor: colors.surfaceInput,
+    },
+    filterCardLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flex: 1,
+    },
+    filterCardTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginBottom: 2,
+    },
+    filterCardDesc: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    countBadge: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 11,
+      paddingVertical: 5,
+      borderRadius: 16,
+      marginLeft: 10,
+    },
+    countBadgeText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
     textArea: {
       borderWidth: 1,
       borderColor: colors.borderInput,
@@ -701,6 +1333,32 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '600',
       textDecorationLine: 'underline',
     },
+    optOutRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: colors.borderInput,
+      backgroundColor: colors.surfaceInput,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxChecked: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    optOutLabel: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text,
+      fontWeight: '500',
+    },
     previewBox: {
       backgroundColor: colors.primarySoft,
       borderLeftWidth: 4,
@@ -723,6 +1381,130 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 14,
       color: colors.text,
       lineHeight: 20,
+    },
+    emptyQueueText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      fontStyle: 'italic',
+      textAlign: 'center',
+      paddingVertical: 14,
+    },
+    sendNextButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.primary,
+      paddingVertical: 15,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      marginBottom: 16,
+    },
+    sendNextButtonText: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    allSentContainer: {
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 16,
+    },
+    allSentBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: colors.success,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      width: '100%',
+      justifyContent: 'center',
+    },
+    allSentText: {
+      color: '#fff',
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    resetQueueBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 6,
+    },
+    resetQueueBtnText: {
+      color: colors.primaryStrongText,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    customerQueueList: {
+      gap: 8,
+    },
+    customerQueueRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceInput,
+    },
+    customerQueueRowSent: {
+      opacity: 0.65,
+    },
+    customerPhoneText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginBottom: 2,
+    },
+    customerMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    customerBalanceText: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    customerBonusPill: {
+      backgroundColor: colors.primarySoft,
+      borderWidth: 1,
+      borderColor: colors.primarySoftBorder,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: 10,
+    },
+    customerBonusPillText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+    },
+    customerSendBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: colors.primarySoft,
+      borderWidth: 1,
+      borderColor: colors.primarySoftBorder,
+    },
+    customerSendBtnSent: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+    },
+    customerSendBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+    },
+    customerSendBtnTextSent: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.success,
     },
     saveButton: {
       backgroundColor: colors.success,
