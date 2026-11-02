@@ -484,7 +484,7 @@ export const translations: Record<LanguageCode, Translations> = {
       outreachMessageHelper:
         'Skriv ditt meddelande eller utgå från mallen nedan. Tryck på en tagg för att infoga kundens uppgifter:',
       defaultCampaignMsg:
-        'Hej! Nu händer det grejer hos {butik}! Varmt välkommen in till oss. Ditt aktuella saldo är {saldo}.',
+        'Hej! Nu händer det grejer hos {butik}! Varmt välkommen in till oss.',
       defaultReminderHasBonusMsg:
         'Hej! Vi vill bara påminna om att du har en bonus ({bonus}) att hämta ut hos {butik}. Varmt välkommen in!',
       defaultReminderCloseMsg:
@@ -783,7 +783,7 @@ export const translations: Record<LanguageCode, Translations> = {
       outreachMessageHelper:
         'Write your message or edit the suggested template below. Tap a tag to insert customer details:',
       defaultCampaignMsg:
-        'Hi! Exciting things are happening at {store}! Welcome in. Your current balance is {balance}.',
+        'Hi! Exciting things are happening at {store}! Welcome in.',
       defaultReminderHasBonusMsg:
         'Hi! Just a friendly reminder that you have a bonus ({bonus}) waiting for you at {store}. Welcome in!',
       defaultReminderCloseMsg:
@@ -1082,7 +1082,7 @@ export const translations: Record<LanguageCode, Translations> = {
       outreachMessageHelper:
         'Schreiben Sie Ihre Nachricht oder passen Sie die Vorlage an. Tippen Sie auf einen Platzhalter, um Kundendaten einzufügen:',
       defaultCampaignMsg:
-        'Hallo! Bei {laden} gibt es Neuigkeiten! Schauen Sie gerne vorbei. Ihr aktuelles Guthaben beträgt {guthaben}.',
+        'Hallo! Bei {laden} gibt es Neuigkeiten! Schauen Sie gerne vorbei.',
       defaultReminderHasBonusMsg:
         'Hallo! Wir möchten Sie daran erinnern, dass noch ein Bonus ({bonus}) bei {laden} auf Sie wartet. Herzlich willkommen!',
       defaultReminderCloseMsg:
@@ -1384,7 +1384,7 @@ export const translations: Record<LanguageCode, Translations> = {
       outreachMessageHelper:
         'Escribe tu mensaje o usa la plantilla sugerida. Pulsa una etiqueta para insertar los datos del cliente:',
       defaultCampaignMsg:
-        '¡Hola! ¡Tenemos novedades en {tienda}! Te esperamos. Tu saldo actual es {saldo}.',
+        '¡Hola! ¡Tenemos novedades en {tienda}! Te esperamos.',
       defaultReminderHasBonusMsg:
         '¡Hola! Te recordamos que tienes un bono ({bonus}) listo para canjear en {tienda}. ¡Te esperamos!',
       defaultReminderCloseMsg:
