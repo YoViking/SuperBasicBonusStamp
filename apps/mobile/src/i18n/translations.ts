@@ -341,6 +341,12 @@ export interface Translations {
     consentRequire: string;
     consentAlways: string;
     pointsRateLabel: (currency: string) => string;
+    thresholdLabel: string;
+    thresholdHelper: string;
+    rewardAmountLabel: (currency: string) => string;
+    rewardAmountHelper: string;
+    rulesSummaryTitle: string;
+    rulesSummaryText: (rate: string, currency: string, threshold: string, reward: string, prefix: string) => string;
     productTypesFilterLabel: string;
     productTypesFilterPlaceholder: string;
     productTypesFilterHelper: string;
@@ -742,6 +748,13 @@ export const translations: Record<LanguageCode, Translations> = {
       consentRequire: 'Kräv aktivt samtycke för att ge bonuspoäng',
       consentAlways: 'Ge poäng och registrera alltid kunden',
       pointsRateLabel: (currency: string) => `Poäng per 1 ${currency} (standard: 1)`,
+      thresholdLabel: 'Poäng som krävs för bonus (tröskel)',
+      thresholdHelper: 'Antal poäng kunden måste uppnå för att få en bonus (t.ex. 1000).',
+      rewardAmountLabel: (currency: string) => `Rabattbelopp vid uppnådd bonus (${currency})`,
+      rewardAmountHelper: 'Värdet på den rabattkod som skapas automatiskt i Shopify.',
+      rulesSummaryTitle: 'Sammanfattning av bonusregeln',
+      rulesSummaryText: (rate: string, currency: string, threshold: string, reward: string, prefix: string) =>
+        `Kunden får ${rate} poäng per 1 ${currency}. Vid ${threshold} poäng skapas automatiskt en engångskod (${prefix}-XXXXXX) värd ${reward} ${currency} för kunden i Shopify.`,
       productTypesFilterLabel: 'Begränsa till specifika artikelgrupper / produkttyper',
       productTypesFilterPlaceholder: 'T.ex. Kaffe, Tillbehör (kommaseparerat, tomt = alla)',
       productTypesFilterHelper:
@@ -1146,6 +1159,13 @@ export const translations: Record<LanguageCode, Translations> = {
       consentRequire: 'Require active marketing consent to earn points',
       consentAlways: 'Award points and always enroll customer',
       pointsRateLabel: (currency: string) => `Points per 1 ${currency} (default: 1)`,
+      thresholdLabel: 'Points required for bonus (threshold)',
+      thresholdHelper: 'Number of points a customer must reach to earn a reward (e.g. 1000).',
+      rewardAmountLabel: (currency: string) => `Reward discount amount (${currency})`,
+      rewardAmountHelper: 'The value of the discount code automatically created in Shopify.',
+      rulesSummaryTitle: 'Bonus Rule Summary',
+      rulesSummaryText: (rate: string, currency: string, threshold: string, reward: string, prefix: string) =>
+        `The customer earns ${rate} points per 1 ${currency}. At ${threshold} points, a single-use coupon (${prefix}-XXXXXX) worth ${reward} ${currency} is automatically issued in Shopify.`,
       productTypesFilterLabel: 'Restrict to specific product categories / types',
       productTypesFilterPlaceholder: 'E.g. Coffee, Accessories (comma-separated, empty = all)',
       productTypesFilterHelper:
@@ -1550,6 +1570,13 @@ export const translations: Record<LanguageCode, Translations> = {
       consentRequire: 'Aktive Marketing-Einwilligung zum Sammeln von Punkten verlangen',
       consentAlways: 'Punkte vergeben und Kunden immer einschreiben',
       pointsRateLabel: (currency: string) => `Punkte pro 1 ${currency} (Standard: 1)`,
+      thresholdLabel: 'Erforderliche Punkte für Bonus (Schwelle)',
+      thresholdHelper: 'Anzahl der Punkte, die ein Kunde für eine Belohnung erreichen muss (z. B. 1000).',
+      rewardAmountLabel: (currency: string) => `Rabattbetrag bei erreichtem Bonus (${currency})`,
+      rewardAmountHelper: 'Der Wert des Gutscheincodes, der automatisch in Shopify erstellt wird.',
+      rulesSummaryTitle: 'Zusammenfassung der Bonusregel',
+      rulesSummaryText: (rate: string, currency: string, threshold: string, reward: string, prefix: string) =>
+        `Der Kunde erhält ${rate} Punkte pro 1 ${currency}. Bei ${threshold} Punkten wird automatisch ein Gutscheincode (${prefix}-XXXXXX) im Wert von ${reward} ${currency} in Shopify erstellt.`,
       productTypesFilterLabel: 'Auf bestimmte Produktkategorien beschränken',
       productTypesFilterPlaceholder: 'Z.B. Kaffee, Zubehör (kommagetrennt, leer = alle)',
       productTypesFilterHelper:
@@ -1957,6 +1984,13 @@ export const translations: Record<LanguageCode, Translations> = {
       consentRequire: 'Requerir consentimiento activo de marketing para ganar puntos',
       consentAlways: 'Otorgar puntos y registrar siempre al cliente',
       pointsRateLabel: (currency: string) => `Puntos por 1 ${currency} (predeterminado: 1)`,
+      thresholdLabel: 'Puntos necesarios para el bono (umbral)',
+      thresholdHelper: 'Cantidad de puntos que un cliente debe acumular para ganar un bono (ej. 1000).',
+      rewardAmountLabel: (currency: string) => `Monto del cupón de descuento (${currency})`,
+      rewardAmountHelper: 'El valor del código de descuento que se creará automáticamente en Shopify.',
+      rulesSummaryTitle: 'Resumen de la regla de bonificación',
+      rulesSummaryText: (rate: string, currency: string, threshold: string, reward: string, prefix: string) =>
+        `El cliente acumula ${rate} puntos por cada 1 ${currency}. Al llegar a ${threshold} puntos, se emite automáticamente un cupón (${prefix}-XXXXXX) de ${reward} ${currency} en Shopify.`,
       productTypesFilterLabel: 'Restringir a categorías de productos específicas',
       productTypesFilterPlaceholder: 'Ej. Café, Accesorios (separados por comas, vacío = todos)',
       productTypesFilterHelper:

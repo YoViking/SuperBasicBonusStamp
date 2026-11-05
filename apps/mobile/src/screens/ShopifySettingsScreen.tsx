@@ -39,6 +39,9 @@ import {
   getRecentShopifyOrders,
   syncShopifyArticles,
   ShopifyConsentMode,
+  getStoreSettings,
+  saveStoreSettings,
+  StoreSettings,
 } from '../db/operations';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -62,6 +65,9 @@ export default function ShopifySettingsScreen() {
   const [isActive, setIsActive] = useState(true);
   const [consentMode, setConsentMode] = useState<ShopifyConsentMode>('RESPECT_OUTREACH');
   const [pointsPerCurrency, setPointsPerCurrency] = useState('1');
+  const [pointsThreshold, setPointsThreshold] = useState('1000');
+  const [rewardAmount, setRewardAmount] = useState('100');
+  const [storeSettings, setStoreSettings] = useState<StoreSettings | null>(null);
   const [productTypesFilter, setProductTypesFilter] = useState('');
   const [discountPrefix, setDiscountPrefix] = useState('BONUS-');
   const [discountValidityDays, setDiscountValidityDays] = useState('90');
@@ -78,10 +84,11 @@ export default function ShopifySettingsScreen() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [integration, discounts, orders] = await Promise.all([
+      const [integration, discounts, orders, store] = await Promise.all([
         getShopifyIntegration(),
         getShopifyDiscountCodes(),
         getRecentShopifyOrders(15),
+        getStoreSettings(),
       ]);
 
       if (integration) {
@@ -95,6 +102,12 @@ export default function ShopifySettingsScreen() {
         setDiscountPrefix(integration.discountCodePrefix || 'BONUS-');
         setDiscountValidityDays(String(integration.discountValidityDays ?? 90));
         setSyncArticles(Boolean(integration.syncArticles));
+      }
+
+      if (store) {
+        setStoreSettings(store);
+        setPointsThreshold(String(store.threshold || 1000));
+        setRewardAmount(String(store.rewardAmount || 100));
       }
 
       setDiscountCodes(discounts);
@@ -144,18 +157,30 @@ export default function ShopifySettingsScreen() {
         .map((s) => s.trim())
         .filter(Boolean);
 
-      await saveShopifyIntegration({
-        shopDomain,
-        accessToken,
-        webhookSecret,
-        isActive,
-        consentMode,
-        eligibleProductTypes: eligibleArr,
-        pointsPerCurrency: Math.max(0.01, parseFloat(pointsPerCurrency) || 1),
-        discountCodePrefix: discountPrefix.trim() || 'BONUS-',
-        discountValidityDays: Math.max(1, parseInt(discountValidityDays, 10) || 90),
-        syncArticles,
-      });
+      const parsedThreshold = Math.max(1, parseFloat(pointsThreshold) || 1000);
+      const parsedRewardAmount = Math.max(1, parseFloat(rewardAmount) || 100);
+
+      await Promise.all([
+        saveShopifyIntegration({
+          shopDomain,
+          accessToken,
+          webhookSecret,
+          isActive,
+          consentMode,
+          eligibleProductTypes: eligibleArr,
+          pointsPerCurrency: Math.max(0.01, parseFloat(pointsPerCurrency) || 1),
+          discountCodePrefix: discountPrefix.trim() || 'BONUS-',
+          discountValidityDays: Math.max(1, parseInt(discountValidityDays, 10) || 90),
+          syncArticles,
+        }),
+        storeSettings
+          ? saveStoreSettings({
+              ...storeSettings,
+              threshold: parsedThreshold,
+              rewardAmount: parsedRewardAmount,
+            })
+          : Promise.resolve(),
+      ]);
 
       Alert.alert('Shopify', t.shopify.savedSuccess);
       await loadData();
@@ -410,6 +435,49 @@ export default function ShopifySettingsScreen() {
                 placeholder="1"
                 placeholderTextColor={colors.placeholder}
               />
+
+              {/* Tröskelvärde för bonus */}
+              <Text style={styles.label}>{t.shopify.thresholdLabel}</Text>
+              <TextInput
+                style={styles.input}
+                value={pointsThreshold}
+                onChangeText={setPointsThreshold}
+                keyboardType="numeric"
+                placeholder="1000"
+                placeholderTextColor={colors.placeholder}
+              />
+              <Text style={styles.fieldSubHelper}>{t.shopify.thresholdHelper}</Text>
+
+              {/* Rabattbelopp */}
+              <Text style={styles.label}>{t.shopify.rewardAmountLabel(currency)}</Text>
+              <TextInput
+                style={styles.input}
+                value={rewardAmount}
+                onChangeText={setRewardAmount}
+                keyboardType="numeric"
+                placeholder="100"
+                placeholderTextColor={colors.placeholder}
+              />
+              <Text style={styles.fieldSubHelper}>{t.shopify.rewardAmountHelper}</Text>
+
+              {/* Sammanfattningsbox */}
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryHeaderRow}>
+                  <Tag size={16} color={colors.primaryStrongText} />
+                  <Text style={styles.summaryTitle}>{t.shopify.rulesSummaryTitle}</Text>
+                </View>
+                <Text style={styles.summaryBody}>
+                  {t.shopify.rulesSummaryText(
+                    pointsPerCurrency || '1',
+                    currency,
+                    pointsThreshold || '1000',
+                    rewardAmount || '100',
+                    discountPrefix.trim().replace(/-$/, '') || 'BONUS'
+                  )}
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
 
               {/* Artikelgrupper */}
               <Text style={styles.label}>{t.shopify.productTypesFilterLabel}</Text>
@@ -775,6 +843,31 @@ const createStyles = (colors: ThemeColors) =>
       marginTop: -6,
       marginBottom: 12,
       lineHeight: 16,
+    },
+    summaryCard: {
+      backgroundColor: colors.primarySoft,
+      borderRadius: 10,
+      padding: 12,
+      marginTop: 4,
+      marginBottom: 14,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.primary,
+    },
+    summaryHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 6,
+    },
+    summaryTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+    },
+    summaryBody: {
+      fontSize: 12,
+      lineHeight: 18,
+      color: colors.text,
     },
     label: {
       fontSize: 13,
