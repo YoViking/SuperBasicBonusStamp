@@ -35,6 +35,7 @@ export interface Translations {
     bonusSms: string;
     articles: string;
     app: string;
+    shopify: string;
   };
   appSettings: {
     themeTitle: string;
@@ -182,6 +183,9 @@ export interface Translations {
     noDoneBtn: string;
     yesOpenSmsBtn: string;
     gdprSmsFooter: (storeName: string) => string;
+    activeShopifyDiscount: (code: string, amount: number, currency: string) => string;
+    redeemShopifyDiscountBtn: string;
+    shopifyDiscountRedeemedAlert: string;
   };
   bonusSettings: {
     section1Title: string;
@@ -304,6 +308,71 @@ export interface Translations {
     torchOff: string;
     closeBtn: string;
   };
+  shopify: {
+    title: string;
+    subTitle: string;
+    badgeActive: string;
+    badgeInactive: string;
+    badgeNotConfigured: string;
+    sectionConnectTitle: string;
+    sectionConnectDesc: string;
+    domainLabel: string;
+    domainPlaceholder: string;
+    tokenLabel: string;
+    tokenPlaceholder: string;
+    secretLabel: string;
+    secretPlaceholder: string;
+    webhookUrlTitle: string;
+    webhookUrlHelper: string;
+    copyUrlBtn: string;
+    urlCopied: string;
+    testBtn: string;
+    testing: string;
+    testSuccess: (shopName: string) => string;
+    testError: string;
+    saveBtn: string;
+    saving: string;
+    savedSuccess: string;
+    rulesTitle: string;
+    rulesDesc: string;
+    consentTitle: string;
+    consentDesc: string;
+    consentRespect: string;
+    consentRequire: string;
+    consentAlways: string;
+    pointsRateLabel: (currency: string) => string;
+    thresholdLabel: string;
+    thresholdHelper: string;
+    rewardAmountLabel: (currency: string) => string;
+    rewardAmountHelper: string;
+    rulesSummaryTitle: string;
+    rulesSummaryText: (rate: string, currency: string, threshold: string, reward: string, prefix: string) => string;
+    productTypesFilterLabel: string;
+    productTypesFilterPlaceholder: string;
+    productTypesFilterHelper: string;
+    discountPrefixLabel: string;
+    discountValidityLabel: string;
+    syncTitle: string;
+    syncDesc: string;
+    syncBtn: string;
+    syncing: string;
+    syncSuccess: (count: number) => string;
+    syncError: string;
+    tabConfig: string;
+    tabDiscounts: string;
+    tabOrders: string;
+    emptyDiscounts: string;
+    emptyOrders: string;
+    filterAll: string;
+    filterActive: string;
+    filterUsed: string;
+    codeCopied: string;
+    expiresOn: (date: string) => string;
+    redeemedInOrder: (order: string) => string;
+    inStoreRedeemBtn: string;
+    inStoreRedeemConfirm: string;
+    inStoreRedeemedSuccess: string;
+  };
   sms: {
     defaultStampPurchase: string;
     defaultStampBonus: string;
@@ -338,6 +407,7 @@ export const translations: Record<LanguageCode, Translations> = {
       bonusSms: 'Bonus & SMS',
       articles: 'Artiklar',
       app: 'App',
+      shopify: 'Shopify',
     },
     appSettings: {
       themeTitle: 'Utseende (Tema)',
@@ -500,6 +570,10 @@ export const translations: Record<LanguageCode, Translations> = {
       yesOpenSmsBtn: 'Ja, öppna SMS',
       gdprSmsFooter: (storeName) =>
         `\n\nInfo: Vi sparar ditt nummer för bonussystemet hos ${storeName}. Svara STOPP om du vill gå ur.`,
+      activeShopifyDiscount: (code, amount, currency) =>
+        `Aktiv Shopify-rabattkod: ${code} (${amount} ${currency})`,
+      redeemShopifyDiscountBtn: 'Lös in i kassan',
+      shopifyDiscountRedeemedAlert: 'Shopify-rabattkoden har lösts in och förbrukats!',
     },
     bonusSettings: {
       section1Title: '1. Butik & Kassaläge',
@@ -639,6 +713,75 @@ export const translations: Record<LanguageCode, Translations> = {
       torchOff: 'Lampa: Av',
       closeBtn: 'Stäng',
     },
+    shopify: {
+      title: 'Shopify-integration',
+      subTitle: 'Koppla din nätbutik för automatisk poängintjäning och online-rabattkoder',
+      badgeActive: 'Ansluten & Aktiv',
+      badgeInactive: 'Inaktiverad',
+      badgeNotConfigured: 'Ej konfigurerad',
+      sectionConnectTitle: '1. Anslutning & API-nycklar',
+      sectionConnectDesc:
+        'Skapa en Anpassad app (Custom App) i Shopify Admin (Inställningar > Appar och försäljningskanaler > Utveckla appar).',
+      domainLabel: 'Shopify-domän (myshopify.com)',
+      domainPlaceholder: 'din-butik.myshopify.com',
+      tokenLabel: 'Admin API Access Token',
+      tokenPlaceholder: 'shpat_xxxxxxxxxxxxxxxxxxxxxxxx',
+      secretLabel: 'Webhook Signing Secret',
+      secretPlaceholder: 'shpss_xxxxxxxxxxxxxxxxxxxxxxxx',
+      webhookUrlTitle: 'Webhook-adress för ordrar',
+      webhookUrlHelper:
+        'Skapa en webhook i Shopify Admin för ämnet "orders/paid" och klistra in denna URL:',
+      copyUrlBtn: 'Kopiera URL',
+      urlCopied: 'Webhook-URL kopierad till urklipp!',
+      testBtn: 'Testa koppling',
+      testing: 'Testar anslutning...',
+      testSuccess: (shopName: string) => `Anslutning lyckades till "${shopName}"!`,
+      testError: 'Kunde inte ansluta till Shopify. Kontrollera dina uppgifter.',
+      saveBtn: 'Spara Shopify-inställningar',
+      saving: 'Sparar...',
+      savedSuccess: 'Shopify-inställningarna har sparats!',
+      rulesTitle: '2. Poängregler & Artikelgrupper',
+      rulesDesc: 'Välj hur poäng ska intjänas från online-köp och vilka varor som ger bonus.',
+      consentTitle: 'Samtycke i kassan (Consent)',
+      consentDesc: 'Hur appen hanterar kundens val i Shopifys kassa för marknadsföring:',
+      consentRespect: 'Ge poäng men respektera samtycke för kampanjer (Standard)',
+      consentRequire: 'Kräv aktivt samtycke för att ge bonuspoäng',
+      consentAlways: 'Ge poäng och registrera alltid kunden',
+      pointsRateLabel: (currency: string) => `Poäng per 1 ${currency} (standard: 1)`,
+      thresholdLabel: 'Poäng som krävs för bonus (tröskel)',
+      thresholdHelper: 'Antal poäng kunden måste uppnå för att få en bonus (t.ex. 1000).',
+      rewardAmountLabel: (currency: string) => `Rabattbelopp vid uppnådd bonus (${currency})`,
+      rewardAmountHelper: 'Värdet på den rabattkod som skapas automatiskt i Shopify.',
+      rulesSummaryTitle: 'Sammanfattning av bonusregeln',
+      rulesSummaryText: (rate: string, currency: string, threshold: string, reward: string, prefix: string) =>
+        `Kunden får ${rate} poäng per 1 ${currency}. Vid ${threshold} poäng skapas automatiskt en engångskod (${prefix}-XXXXXX) värd ${reward} ${currency} för kunden i Shopify.`,
+      productTypesFilterLabel: 'Begränsa till specifika artikelgrupper / produkttyper',
+      productTypesFilterPlaceholder: 'T.ex. Kaffe, Tillbehör (kommaseparerat, tomt = alla)',
+      productTypesFilterHelper:
+        'Lämna tomt för att ge poäng på hela sortimentet. Skriv produkttyper separerade med komma för att begränsa.',
+      discountPrefixLabel: 'Rabattkodsprefix vid uppnådd bonus',
+      discountValidityLabel: 'Giltighetstid för rabattkod (dagar)',
+      syncTitle: '3. Synka artiklar från Shopify',
+      syncDesc: 'Importera eller uppdatera varor och kategorier från din Shopify-katalog till kassan.',
+      syncBtn: 'Synka artiklar nu',
+      syncing: 'Hämtar artiklar från Shopify...',
+      syncSuccess: (count: number) => `Synkroniserade ${count} artiklar från Shopify!`,
+      syncError: 'Kunde inte synka artiklar från Shopify.',
+      tabConfig: 'Inställningar',
+      tabDiscounts: 'Rabatter',
+      tabOrders: 'Ordrar',
+      emptyDiscounts: 'Inga genererade Shopify-rabattkoder än.',
+      emptyOrders: 'Inga Shopify-ordrar mottagna än.',
+      filterAll: 'Alla',
+      filterActive: 'Aktiva',
+      filterUsed: 'Förbrukade',
+      codeCopied: 'Rabattkod kopierad!',
+      expiresOn: (date: string) => `Giltig t.o.m. ${date}`,
+      redeemedInOrder: (order: string) => `Inlöst i order ${order}`,
+      inStoreRedeemBtn: 'Lös in i butik',
+      inStoreRedeemConfirm: 'Är du säker på att du vill markera koden som förbrukad i kassan?',
+      inStoreRedeemedSuccess: 'Rabattkoden har förbrukats i kassan!',
+    },
     sms: {
       defaultStampPurchase:
         'Tack för ditt besök hos {butik}! Du har nu {saldo} och har bara {kvar_till_bonus} kvar till din bonus ({bonus}).',
@@ -675,6 +818,7 @@ export const translations: Record<LanguageCode, Translations> = {
       bonusSms: 'Bonus & SMS',
       articles: 'Items',
       app: 'App',
+      shopify: 'Shopify',
     },
     appSettings: {
       themeTitle: 'Appearance (Theme)',
@@ -837,6 +981,10 @@ export const translations: Record<LanguageCode, Translations> = {
       yesOpenSmsBtn: 'Yes, open SMS',
       gdprSmsFooter: (storeName) =>
         `\n\nInfo: We save your number for the loyalty program at ${storeName}. Reply STOP to opt out.`,
+      activeShopifyDiscount: (code, amount, currency) =>
+        `Active Shopify coupon: ${code} (${amount} ${currency})`,
+      redeemShopifyDiscountBtn: 'Redeem at counter',
+      shopifyDiscountRedeemedAlert: 'Shopify coupon has been redeemed at counter!',
     },
     bonusSettings: {
       section1Title: '1. Store & POS Mode',
@@ -976,6 +1124,75 @@ export const translations: Record<LanguageCode, Translations> = {
       torchOff: 'Torch: Off',
       closeBtn: 'Close',
     },
+    shopify: {
+      title: 'Shopify Integration',
+      subTitle: 'Connect your online store for automatic loyalty points and discount codes',
+      badgeActive: 'Connected & Active',
+      badgeInactive: 'Disabled',
+      badgeNotConfigured: 'Not configured',
+      sectionConnectTitle: '1. Connection & API Credentials',
+      sectionConnectDesc:
+        'Create a Custom App in Shopify Admin (Settings > Apps and sales channels > Develop apps).',
+      domainLabel: 'Shopify Domain (myshopify.com)',
+      domainPlaceholder: 'your-store.myshopify.com',
+      tokenLabel: 'Admin API Access Token',
+      tokenPlaceholder: 'shpat_xxxxxxxxxxxxxxxxxxxxxxxx',
+      secretLabel: 'Webhook Signing Secret',
+      secretPlaceholder: 'shpss_xxxxxxxxxxxxxxxxxxxxxxxx',
+      webhookUrlTitle: 'Webhook URL for Orders',
+      webhookUrlHelper:
+        'Create a webhook in Shopify Admin for the topic "orders/paid" and paste this URL:',
+      copyUrlBtn: 'Copy URL',
+      urlCopied: 'Webhook URL copied to clipboard!',
+      testBtn: 'Test Connection',
+      testing: 'Testing connection...',
+      testSuccess: (shopName: string) => `Successfully connected to "${shopName}"!`,
+      testError: 'Could not connect to Shopify. Check your credentials.',
+      saveBtn: 'Save Shopify Settings',
+      saving: 'Saving...',
+      savedSuccess: 'Shopify settings saved successfully!',
+      rulesTitle: '2. Points Rules & Product Categories',
+      rulesDesc: 'Choose how points are earned from online orders and which products qualify.',
+      consentTitle: 'Marketing Consent in Checkout',
+      consentDesc: 'How the app handles customer opt-in in Shopify checkout:',
+      consentRespect: 'Award points but respect marketing consent for campaigns (Default)',
+      consentRequire: 'Require active marketing consent to earn points',
+      consentAlways: 'Award points and always enroll customer',
+      pointsRateLabel: (currency: string) => `Points per 1 ${currency} (default: 1)`,
+      thresholdLabel: 'Points required for bonus (threshold)',
+      thresholdHelper: 'Number of points a customer must reach to earn a reward (e.g. 1000).',
+      rewardAmountLabel: (currency: string) => `Reward discount amount (${currency})`,
+      rewardAmountHelper: 'The value of the discount code automatically created in Shopify.',
+      rulesSummaryTitle: 'Bonus Rule Summary',
+      rulesSummaryText: (rate: string, currency: string, threshold: string, reward: string, prefix: string) =>
+        `The customer earns ${rate} points per 1 ${currency}. At ${threshold} points, a single-use coupon (${prefix}-XXXXXX) worth ${reward} ${currency} is automatically issued in Shopify.`,
+      productTypesFilterLabel: 'Restrict to specific product categories / types',
+      productTypesFilterPlaceholder: 'E.g. Coffee, Accessories (comma-separated, empty = all)',
+      productTypesFilterHelper:
+        'Leave empty to award points on all products. Enter comma-separated product types to restrict.',
+      discountPrefixLabel: 'Discount code prefix when bonus reached',
+      discountValidityLabel: 'Discount code validity (days)',
+      syncTitle: '3. Sync Products from Shopify',
+      syncDesc: 'Import or update products and categories from your Shopify catalog into the POS.',
+      syncBtn: 'Sync Products Now',
+      syncing: 'Fetching products from Shopify...',
+      syncSuccess: (count: number) => `Successfully synced ${count} products from Shopify!`,
+      syncError: 'Could not sync products from Shopify.',
+      tabConfig: 'Settings',
+      tabDiscounts: 'Discounts',
+      tabOrders: 'Orders',
+      emptyDiscounts: 'No Shopify discount codes generated yet.',
+      emptyOrders: 'No Shopify orders received yet.',
+      filterAll: 'All',
+      filterActive: 'Active',
+      filterUsed: 'Redeemed',
+      codeCopied: 'Coupon code copied!',
+      expiresOn: (date: string) => `Expires on ${date}`,
+      redeemedInOrder: (order: string) => `Redeemed in order ${order}`,
+      inStoreRedeemBtn: 'Redeem at counter',
+      inStoreRedeemConfirm: 'Are you sure you want to mark this coupon as redeemed at the register?',
+      inStoreRedeemedSuccess: 'Coupon marked as redeemed!',
+    },
     sms: {
       defaultStampPurchase:
         'Thank you for visiting {store}! You now have {balance} and only {remaining} left until your bonus ({bonus}).',
@@ -1012,6 +1229,7 @@ export const translations: Record<LanguageCode, Translations> = {
       bonusSms: 'Bonus & SMS',
       articles: 'Artikel',
       app: 'App',
+      shopify: 'Shopify',
     },
     appSettings: {
       themeTitle: 'Darstellung (Design)',
@@ -1174,6 +1392,10 @@ export const translations: Record<LanguageCode, Translations> = {
       yesOpenSmsBtn: 'Ja, SMS öffnen',
       gdprSmsFooter: (storeName) =>
         `\n\nInfo: Wir speichern Ihre Nummer für das Bonussystem bei ${storeName}. Antworten Sie mit STOP zum Abmelden.`,
+      activeShopifyDiscount: (code, amount, currency) =>
+        `Aktiver Shopify-Rabattcode: ${code} (${amount} ${currency})`,
+      redeemShopifyDiscountBtn: 'An der Kasse einlösen',
+      shopifyDiscountRedeemedAlert: 'Der Shopify-Gutschein wurde an der Kasse eingelöst!',
     },
     bonusSettings: {
       section1Title: '1. Geschäft & Kassenmodus',
@@ -1313,6 +1535,75 @@ export const translations: Record<LanguageCode, Translations> = {
       torchOff: 'Licht: Aus',
       closeBtn: 'Schließen',
     },
+    shopify: {
+      title: 'Shopify-Integration',
+      subTitle: 'Verbinden Sie Ihren Onlineshop für automatische Bonuspunkte und Gutscheincodes',
+      badgeActive: 'Verbunden & Aktiv',
+      badgeInactive: 'Deaktiviert',
+      badgeNotConfigured: 'Nicht konfiguriert',
+      sectionConnectTitle: '1. Verbindung & API-Schlüssel',
+      sectionConnectDesc:
+        'Erstellen Sie eine benutzerdefinierte App im Shopify Admin (Einstellungen > Apps und Vertriebskanäle > Apps entwickeln).',
+      domainLabel: 'Shopify-Domain (myshopify.com)',
+      domainPlaceholder: 'ihr-shop.myshopify.com',
+      tokenLabel: 'Admin-API-Zugriffstoken',
+      tokenPlaceholder: 'shpat_xxxxxxxxxxxxxxxxxxxxxxxx',
+      secretLabel: 'Webhook-Signiergeheimnis',
+      secretPlaceholder: 'shpss_xxxxxxxxxxxxxxxxxxxxxxxx',
+      webhookUrlTitle: 'Webhook-URL für Bestellungen',
+      webhookUrlHelper:
+        'Erstellen Sie einen Webhook im Shopify Admin für das Thema "orders/paid" und fügen Sie diese URL ein:',
+      copyUrlBtn: 'URL kopieren',
+      urlCopied: 'Webhook-URL in Zwischenablage kopiert!',
+      testBtn: 'Verbindung testen',
+      testing: 'Verbindung wird getestet...',
+      testSuccess: (shopName: string) => `Erfolgreich mit "${shopName}" verbunden!`,
+      testError: 'Verbindung zu Shopify fehlgeschlagen. Überprüfen Sie Ihre Daten.',
+      saveBtn: 'Shopify-Einstellungen speichern',
+      saving: 'Speichern...',
+      savedSuccess: 'Shopify-Einstellungen erfolgreich gespeichert!',
+      rulesTitle: '2. Punkteregeln & Produktkategorien',
+      rulesDesc: 'Legen Sie fest, wie Punkte für Online-Bestellungen gesammelt werden und welche Artikel zählen.',
+      consentTitle: 'Marketing-Einwilligung im Checkout',
+      consentDesc: 'Wie die App mit der Kundenauswahl im Shopify-Checkout umgeht:',
+      consentRespect: 'Punkte vergeben, aber Einwilligung für Kampagnen respektieren (Standard)',
+      consentRequire: 'Aktive Marketing-Einwilligung zum Sammeln von Punkten verlangen',
+      consentAlways: 'Punkte vergeben und Kunden immer einschreiben',
+      pointsRateLabel: (currency: string) => `Punkte pro 1 ${currency} (Standard: 1)`,
+      thresholdLabel: 'Erforderliche Punkte für Bonus (Schwelle)',
+      thresholdHelper: 'Anzahl der Punkte, die ein Kunde für eine Belohnung erreichen muss (z. B. 1000).',
+      rewardAmountLabel: (currency: string) => `Rabattbetrag bei erreichtem Bonus (${currency})`,
+      rewardAmountHelper: 'Der Wert des Gutscheincodes, der automatisch in Shopify erstellt wird.',
+      rulesSummaryTitle: 'Zusammenfassung der Bonusregel',
+      rulesSummaryText: (rate: string, currency: string, threshold: string, reward: string, prefix: string) =>
+        `Der Kunde erhält ${rate} Punkte pro 1 ${currency}. Bei ${threshold} Punkten wird automatisch ein Gutscheincode (${prefix}-XXXXXX) im Wert von ${reward} ${currency} in Shopify erstellt.`,
+      productTypesFilterLabel: 'Auf bestimmte Produktkategorien beschränken',
+      productTypesFilterPlaceholder: 'Z.B. Kaffee, Zubehör (kommagetrennt, leer = alle)',
+      productTypesFilterHelper:
+        'Leer lassen, um Punkte für das gesamte Sortiment zu vergeben. Kommagetrennte Produkttypen eingeben.',
+      discountPrefixLabel: 'Gutscheincode-Präfix bei erreichtem Bonus',
+      discountValidityLabel: 'Gutscheingültigkeit (Tage)',
+      syncTitle: '3. Artikel aus Shopify synchronisieren',
+      syncDesc: 'Artikel und Kategorien aus Ihrem Shopify-Katalog in die Kasse importieren.',
+      syncBtn: 'Artikel jetzt synchronisieren',
+      syncing: 'Artikel werden aus Shopify geladen...',
+      syncSuccess: (count: number) => `${count} Artikel erfolgreich aus Shopify synchronisiert!`,
+      syncError: 'Artikel konnten nicht aus Shopify synchronisiert werden.',
+      tabConfig: 'Setup',
+      tabDiscounts: 'Rabatte',
+      tabOrders: 'Bestellungen',
+      emptyDiscounts: 'Noch keine Shopify-Gutscheincodes generiert.',
+      emptyOrders: 'Noch keine Shopify-Bestellungen empfangen.',
+      filterAll: 'Alle',
+      filterActive: 'Aktiv',
+      filterUsed: 'Eingelöst',
+      codeCopied: 'Gutscheincode kopiert!',
+      expiresOn: (date: string) => `Gültig bis ${date}`,
+      redeemedInOrder: (order: string) => `Eingelöst in Bestellung ${order}`,
+      inStoreRedeemBtn: 'An der Kasse einlösen',
+      inStoreRedeemConfirm: 'Möchten Sie diesen Gutscheincode wirklich an der Kasse als eingelöst markieren?',
+      inStoreRedeemedSuccess: 'Gutscheincode an der Kasse eingelöst!',
+    },
     sms: {
       defaultStampPurchase:
         'Danke für Ihren Besuch bei {laden}! Sie haben jetzt {guthaben} und es fehlen nur noch {rest} bis zu Ihrem Bonus ({bonus}).',
@@ -1349,6 +1640,7 @@ export const translations: Record<LanguageCode, Translations> = {
       bonusSms: 'Bono y SMS',
       articles: 'Artículos',
       app: 'App',
+      shopify: 'Shopify',
     },
     appSettings: {
       themeTitle: 'Apariencia (Tema)',
@@ -1514,6 +1806,10 @@ export const translations: Record<LanguageCode, Translations> = {
       yesOpenSmsBtn: 'Sí, abrir SMS',
       gdprSmsFooter: (storeName) =>
         `\n\nInfo: Guardamos tu número para el programa de fidelización de ${storeName}. Responde STOP para darte de baja.`,
+      activeShopifyDiscount: (code, amount, currency) =>
+        `Cupón activo de Shopify: ${code} (${amount} ${currency})`,
+      redeemShopifyDiscountBtn: 'Canjear en caja',
+      shopifyDiscountRedeemedAlert: '¡El cupón de Shopify ha sido canjeado en caja!',
     },
     bonusSettings: {
       section1Title: '1. Tienda y Modo de Caja',
@@ -1652,6 +1948,75 @@ export const translations: Record<LanguageCode, Translations> = {
       torchOn: 'Linterna: Encendida',
       torchOff: 'Linterna: Apagada',
       closeBtn: 'Cerrar',
+    },
+    shopify: {
+      title: 'Integración con Shopify',
+      subTitle: 'Conecta tu tienda online para acumular puntos y generar cupones automáticamente',
+      badgeActive: 'Conectado y Activo',
+      badgeInactive: 'Desactivado',
+      badgeNotConfigured: 'No configurado',
+      sectionConnectTitle: '1. Conexión y Claves API',
+      sectionConnectDesc:
+        'Crea una App personalizada en Shopify Admin (Configuración > Aplicaciones y canales de venta > Desarrollar aplicaciones).',
+      domainLabel: 'Dominio de Shopify (myshopify.com)',
+      domainPlaceholder: 'tu-tienda.myshopify.com',
+      tokenLabel: 'Token de acceso a la API de administración',
+      tokenPlaceholder: 'shpat_xxxxxxxxxxxxxxxxxxxxxxxx',
+      secretLabel: 'Secreto de firma de Webhook',
+      secretPlaceholder: 'shpss_xxxxxxxxxxxxxxxxxxxxxxxx',
+      webhookUrlTitle: 'URL de Webhook para pedidos',
+      webhookUrlHelper:
+        'Crea un webhook en Shopify Admin para el tema "orders/paid" y pega esta URL:',
+      copyUrlBtn: 'Copiar URL',
+      urlCopied: '¡URL del webhook copiada al portapapeles!',
+      testBtn: 'Probar conexión',
+      testing: 'Probando conexión...',
+      testSuccess: (shopName: string) => `¡Conexión exitosa con "${shopName}"!`,
+      testError: 'No se pudo conectar a Shopify. Revisa tus credenciales.',
+      saveBtn: 'Guardar configuración de Shopify',
+      saving: 'Guardando...',
+      savedSuccess: '¡Configuración de Shopify guardada con éxito!',
+      rulesTitle: '2. Reglas de Puntos y Categorías',
+      rulesDesc: 'Elige cómo se ganan los puntos en pedidos online y qué productos aplican.',
+      consentTitle: 'Consentimiento de Marketing en el Checkout',
+      consentDesc: 'Cómo maneja la app la elección del cliente en la pantalla de pago de Shopify:',
+      consentRespect: 'Otorgar puntos pero respetar el consentimiento para campañas (Predeterminado)',
+      consentRequire: 'Requerir consentimiento activo de marketing para ganar puntos',
+      consentAlways: 'Otorgar puntos y registrar siempre al cliente',
+      pointsRateLabel: (currency: string) => `Puntos por 1 ${currency} (predeterminado: 1)`,
+      thresholdLabel: 'Puntos necesarios para el bono (umbral)',
+      thresholdHelper: 'Cantidad de puntos que un cliente debe acumular para ganar un bono (ej. 1000).',
+      rewardAmountLabel: (currency: string) => `Monto del cupón de descuento (${currency})`,
+      rewardAmountHelper: 'El valor del código de descuento que se creará automáticamente en Shopify.',
+      rulesSummaryTitle: 'Resumen de la regla de bonificación',
+      rulesSummaryText: (rate: string, currency: string, threshold: string, reward: string, prefix: string) =>
+        `El cliente acumula ${rate} puntos por cada 1 ${currency}. Al llegar a ${threshold} puntos, se emite automáticamente un cupón (${prefix}-XXXXXX) de ${reward} ${currency} en Shopify.`,
+      productTypesFilterLabel: 'Restringir a categorías de productos específicas',
+      productTypesFilterPlaceholder: 'Ej. Café, Accesorios (separados por comas, vacío = todos)',
+      productTypesFilterHelper:
+        'Deja vacío para otorgar puntos en todos los productos. Escribe tipos de producto separados por comas.',
+      discountPrefixLabel: 'Prefijo del código de descuento al alcanzar el bono',
+      discountValidityLabel: 'Validez del cupón de descuento (días)',
+      syncTitle: '3. Sincronizar artículos de Shopify',
+      syncDesc: 'Importa o actualiza productos y categorías desde tu catálogo de Shopify al TPV.',
+      syncBtn: 'Sincronizar artículos ahora',
+      syncing: 'Obteniendo artículos de Shopify...',
+      syncSuccess: (count: number) => `¡Se sincronizaron exitosamente ${count} artículos de Shopify!`,
+      syncError: 'No se pudieron sincronizar los artículos de Shopify.',
+      tabConfig: 'Ajustes',
+      tabDiscounts: 'Cupones',
+      tabOrders: 'Pedidos',
+      emptyDiscounts: 'Aún no se han generado cupones de Shopify.',
+      emptyOrders: 'Aún no se han recibido pedidos de Shopify.',
+      filterAll: 'Todos',
+      filterActive: 'Activos',
+      filterUsed: 'Canjeados',
+      codeCopied: '¡Código de cupón copiado!',
+      expiresOn: (date: string) => `Válido hasta ${date}`,
+      redeemedInOrder: (order: string) => `Canjeado en pedido ${order}`,
+      inStoreRedeemBtn: 'Canjear en tienda',
+      inStoreRedeemConfirm: '¿Estás seguro de que deseas marcar este cupón como canjeado en caja?',
+      inStoreRedeemedSuccess: '¡Cupón de descuento canjeado en caja!',
     },
     sms: {
       defaultStampPurchase:

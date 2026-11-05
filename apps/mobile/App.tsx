@@ -18,6 +18,7 @@ import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
 import PosScreen from './src/screens/PosScreen';
 import ArticleManager from './src/screens/ArticleManager';
 import BonusSettingsScreen from './src/screens/BonusSettingsScreen';
+import ShopifySettingsScreen from './src/screens/ShopifySettingsScreen';
 import AppSettingsScreen from './src/screens/AppSettingsScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import { handleAuthUrl } from './src/services/authDeepLink';
@@ -36,7 +37,8 @@ function AdminTabs({ onLogout }: { onLogout: () => Promise<void> }) {
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
         },
-        tabBarLabelStyle: { fontSize: 14, fontWeight: 'bold' },
+        tabBarLabelStyle: { fontSize: 12.5, fontWeight: '700', textTransform: 'none' },
+        tabBarItemStyle: { paddingHorizontal: 0 },
         tabBarIndicatorStyle: { backgroundColor: colors.primary, height: 3 },
         tabBarActiveTintColor: colors.primaryText,
         tabBarInactiveTintColor: colors.textMuted,
@@ -51,6 +53,11 @@ function AdminTabs({ onLogout }: { onLogout: () => Promise<void> }) {
         name="Artiklar"
         component={ArticleManager}
         options={{ title: t.tabs.articles }}
+      />
+      <AdminTab.Screen
+        name="Shopify"
+        component={ShopifySettingsScreen}
+        options={{ title: t.tabs.shopify }}
       />
       <AdminTab.Screen
         name="App"
