@@ -352,6 +352,7 @@ export interface Translations {
     syncing: string;
     syncSuccess: (count: number) => string;
     syncError: string;
+    tabConfig: string;
     tabDiscounts: string;
     tabOrders: string;
     emptyDiscounts: string;
@@ -753,8 +754,9 @@ export const translations: Record<LanguageCode, Translations> = {
       syncing: 'Hämtar artiklar från Shopify...',
       syncSuccess: (count: number) => `Synkroniserade ${count} artiklar från Shopify!`,
       syncError: 'Kunde inte synka artiklar från Shopify.',
-      tabDiscounts: 'Rabattkoder',
-      tabOrders: 'Synkade ordrar',
+      tabConfig: 'Inställningar',
+      tabDiscounts: 'Rabatter',
+      tabOrders: 'Ordrar',
       emptyDiscounts: 'Inga genererade Shopify-rabattkoder än.',
       emptyOrders: 'Inga Shopify-ordrar mottagna än.',
       filterAll: 'Alla',
@@ -1156,8 +1158,9 @@ export const translations: Record<LanguageCode, Translations> = {
       syncing: 'Fetching products from Shopify...',
       syncSuccess: (count: number) => `Successfully synced ${count} products from Shopify!`,
       syncError: 'Could not sync products from Shopify.',
-      tabDiscounts: 'Discount Codes',
-      tabOrders: 'Synced Orders',
+      tabConfig: 'Settings',
+      tabDiscounts: 'Discounts',
+      tabOrders: 'Orders',
       emptyDiscounts: 'No Shopify discount codes generated yet.',
       emptyOrders: 'No Shopify orders received yet.',
       filterAll: 'All',
@@ -1559,8 +1562,9 @@ export const translations: Record<LanguageCode, Translations> = {
       syncing: 'Artikel werden aus Shopify geladen...',
       syncSuccess: (count: number) => `${count} Artikel erfolgreich aus Shopify synchronisiert!`,
       syncError: 'Artikel konnten nicht aus Shopify synchronisiert werden.',
-      tabDiscounts: 'Gutscheincodes',
-      tabOrders: 'Synchronisierte Bestellungen',
+      tabConfig: 'Setup',
+      tabDiscounts: 'Rabatte',
+      tabOrders: 'Bestellungen',
       emptyDiscounts: 'Noch keine Shopify-Gutscheincodes generiert.',
       emptyOrders: 'Noch keine Shopify-Bestellungen empfangen.',
       filterAll: 'Alle',
@@ -1965,8 +1969,9 @@ export const translations: Record<LanguageCode, Translations> = {
       syncing: 'Obteniendo artículos de Shopify...',
       syncSuccess: (count: number) => `¡Se sincronizaron exitosamente ${count} artículos de Shopify!`,
       syncError: 'No se pudieron sincronizar los artículos de Shopify.',
-      tabDiscounts: 'Cupones de descuento',
-      tabOrders: 'Pedidos sincronizados',
+      tabConfig: 'Ajustes',
+      tabDiscounts: 'Cupones',
+      tabOrders: 'Pedidos',
       emptyDiscounts: 'Aún no se han generado cupones de Shopify.',
       emptyOrders: 'Aún no se han recibido pedidos de Shopify.',
       filterAll: 'Todos',

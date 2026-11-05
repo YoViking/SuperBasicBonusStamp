@@ -225,6 +225,11 @@ export default function ShopifySettingsScreen() {
     return discountCodes.filter((d) => d.status === discountFilter);
   }, [discountCodes, discountFilter]);
 
+  const activeDiscountsCount = useMemo(
+    () => discountCodes.filter((d) => d.status === 'ACTIVE').length,
+    [discountCodes]
+  );
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -268,9 +273,9 @@ export default function ShopifySettingsScreen() {
             style={[styles.tabBtn, activeTab === 'CONFIG' && styles.tabBtnActive]}
             onPress={() => setActiveTab('CONFIG')}
           >
-            <Sliders size={16} color={activeTab === 'CONFIG' ? '#fff' : colors.textSecondary} />
-            <Text style={[styles.tabBtnText, activeTab === 'CONFIG' && styles.tabBtnTextActive]}>
-              Inställningar
+            <Sliders size={14} color={activeTab === 'CONFIG' ? '#fff' : colors.textSecondary} />
+            <Text numberOfLines={1} style={[styles.tabBtnText, activeTab === 'CONFIG' && styles.tabBtnTextActive]}>
+              {t.shopify.tabConfig}
             </Text>
           </TouchableOpacity>
 
@@ -278,20 +283,34 @@ export default function ShopifySettingsScreen() {
             style={[styles.tabBtn, activeTab === 'DISCOUNTS' && styles.tabBtnActive]}
             onPress={() => setActiveTab('DISCOUNTS')}
           >
-            <Tag size={16} color={activeTab === 'DISCOUNTS' ? '#fff' : colors.textSecondary} />
-            <Text style={[styles.tabBtnText, activeTab === 'DISCOUNTS' && styles.tabBtnTextActive]}>
-              {t.shopify.tabDiscounts} ({discountCodes.filter((d) => d.status === 'ACTIVE').length})
+            <Tag size={14} color={activeTab === 'DISCOUNTS' ? '#fff' : colors.textSecondary} />
+            <Text numberOfLines={1} style={[styles.tabBtnText, activeTab === 'DISCOUNTS' && styles.tabBtnTextActive]}>
+              {t.shopify.tabDiscounts}
             </Text>
+            {activeDiscountsCount > 0 && (
+              <View style={[styles.tabBadge, activeTab === 'DISCOUNTS' && styles.tabBadgeActive]}>
+                <Text style={[styles.tabBadgeText, activeTab === 'DISCOUNTS' && styles.tabBadgeTextActive]}>
+                  {activeDiscountsCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.tabBtn, activeTab === 'ORDERS' && styles.tabBtnActive]}
             onPress={() => setActiveTab('ORDERS')}
           >
-            <Receipt size={16} color={activeTab === 'ORDERS' ? '#fff' : colors.textSecondary} />
-            <Text style={[styles.tabBtnText, activeTab === 'ORDERS' && styles.tabBtnTextActive]}>
-              {t.shopify.tabOrders} ({recentOrders.length})
+            <Receipt size={14} color={activeTab === 'ORDERS' ? '#fff' : colors.textSecondary} />
+            <Text numberOfLines={1} style={[styles.tabBtnText, activeTab === 'ORDERS' && styles.tabBtnTextActive]}>
+              {t.shopify.tabOrders}
             </Text>
+            {recentOrders.length > 0 && (
+              <View style={[styles.tabBadge, activeTab === 'ORDERS' && styles.tabBadgeActive]}>
+                <Text style={[styles.tabBadgeText, activeTab === 'ORDERS' && styles.tabBadgeTextActive]}>
+                  {recentOrders.length}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -676,7 +695,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       backgroundColor: colors.surface,
       borderRadius: 12,
-      padding: 4,
+      padding: 3,
       marginBottom: 14,
       borderWidth: 1,
       borderColor: colors.border,
@@ -687,19 +706,37 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 9,
-      borderRadius: 8,
-      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
+      borderRadius: 9,
+      gap: 4,
     },
     tabBtnActive: {
       backgroundColor: colors.primary,
     },
     tabBtnText: {
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '600',
       color: colors.textSecondary,
     },
     tabBtnTextActive: {
+      color: '#fff',
+    },
+    tabBadge: {
+      backgroundColor: colors.surfaceMuted,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      borderRadius: 8,
+    },
+    tabBadgeActive: {
+      backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    },
+    tabBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    tabBadgeTextActive: {
       color: '#fff',
     },
     card: {
