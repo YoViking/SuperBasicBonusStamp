@@ -1,6 +1,7 @@
 -- ============================================================================
 -- SuperBasicBonusStamp - Supabase PostgreSQL Schema
 -- Kör detta skript i Supabase Dashboard -> SQL Editor -> New Query
+-- Skriptet är idempotent och kan köras säkert flera gånger.
 -- ============================================================================
 
 -- 1. STORES (En rad per butik, kopplad till Supabase Auth user.id)
@@ -29,6 +30,9 @@ CREATE TABLE IF NOT EXISTS public.customers (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (store_id, phone_number)
 );
+
+-- Om tabellen customers redan existerade från tidigare: säkerställ att email finns
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS email TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_customers_email ON public.customers (store_id, email);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON public.customers (store_id, phone_number);
@@ -125,6 +129,7 @@ ALTER TABLE public.shopify_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shopify_discount_codes ENABLE ROW LEVEL SECURITY;
 
 -- Policies för stores
+DROP POLICY IF EXISTS "Butik hanterar sin egen profil" ON public.stores;
 CREATE POLICY "Butik hanterar sin egen profil"
   ON public.stores
   FOR ALL
@@ -132,6 +137,7 @@ CREATE POLICY "Butik hanterar sin egen profil"
   WITH CHECK (auth.uid() = id);
 
 -- Policies för customers
+DROP POLICY IF EXISTS "Butik hanterar sina egna kunder" ON public.customers;
 CREATE POLICY "Butik hanterar sina egna kunder"
   ON public.customers
   FOR ALL
@@ -139,6 +145,7 @@ CREATE POLICY "Butik hanterar sina egna kunder"
   WITH CHECK (auth.uid() = store_id);
 
 -- Policies för articles
+DROP POLICY IF EXISTS "Butik hanterar sina egna artiklar" ON public.articles;
 CREATE POLICY "Butik hanterar sina egna artiklar"
   ON public.articles
   FOR ALL
@@ -146,6 +153,7 @@ CREATE POLICY "Butik hanterar sina egna artiklar"
   WITH CHECK (auth.uid() = store_id);
 
 -- Policies för transactions
+DROP POLICY IF EXISTS "Butik hanterar sina egna transaktioner" ON public.transactions;
 CREATE POLICY "Butik hanterar sina egna transaktioner"
   ON public.transactions
   FOR ALL
@@ -153,6 +161,7 @@ CREATE POLICY "Butik hanterar sina egna transaktioner"
   WITH CHECK (auth.uid() = store_id);
 
 -- Policies för shopify_integrations
+DROP POLICY IF EXISTS "Butik hanterar sin egen Shopify-koppling" ON public.shopify_integrations;
 CREATE POLICY "Butik hanterar sin egen Shopify-koppling"
   ON public.shopify_integrations
   FOR ALL
@@ -160,13 +169,15 @@ CREATE POLICY "Butik hanterar sin egen Shopify-koppling"
   WITH CHECK (auth.uid() = store_id);
 
 -- Policies för shopify_orders
-CREATE POLICY "Butik hanterar sina egna Shopify-ordrar"
+DROP POLICY IF EXISTS "Butik läser sina egna Shopify-ordrar" ON public.shopify_orders;
+CREATE POLICY "Butik läser sina egna Shopify-ordrar"
   ON public.shopify_orders
   FOR ALL
   USING (auth.uid() = store_id)
   WITH CHECK (auth.uid() = store_id);
 
 -- Policies för shopify_discount_codes
+DROP POLICY IF EXISTS "Butik hanterar sina egna Shopify-rabattkoder" ON public.shopify_discount_codes;
 CREATE POLICY "Butik hanterar sina egna Shopify-rabattkoder"
   ON public.shopify_discount_codes
   FOR ALL
