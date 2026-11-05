@@ -66,6 +66,19 @@ export interface Translations {
     emailPlaceholder: string;
     passwordLabel: string;
     passwordPlaceholder: string;
+    passwordHint: string;
+    valStoreNameRequired: string;
+    valEmailInvalid: string;
+    valPasswordRequired: string;
+    valPasswordMinLength: string;
+    valPasswordUppercase: string;
+    valPasswordLowercase: string;
+    valPasswordNumber: string;
+    valOtpInvalid: string;
+    criteriaMinLength: string;
+    criteriaUppercase: string;
+    criteriaLowercase: string;
+    criteriaNumber: string;
     registerBtn: string;
     loginBtn: string;
     switchToLogin: string;
@@ -356,7 +369,20 @@ export const translations: Record<LanguageCode, Translations> = {
       emailLabel: 'E-postadress',
       emailPlaceholder: 'butik@exempel.se',
       passwordLabel: 'Lösenord',
-      passwordPlaceholder: 'Minst 6 tecken',
+      passwordPlaceholder: 'Minst 8 tecken (A-Z, a-z, 0-9)',
+      passwordHint: 'Minst 8 tecken med stor bokstav, liten bokstav och siffra',
+      valStoreNameRequired: 'Butiksnamnet måste innehålla minst 2 tecken.',
+      valEmailInvalid: 'Ange en giltig e-postadress.',
+      valPasswordRequired: 'Lösenord måste anges.',
+      valPasswordMinLength: 'Lösenordet måste vara minst 8 tecken.',
+      valPasswordUppercase: 'Lösenordet måste innehålla minst en stor bokstav.',
+      valPasswordLowercase: 'Lösenordet måste innehålla minst en liten bokstav.',
+      valPasswordNumber: 'Lösenordet måste innehålla minst en siffra.',
+      valOtpInvalid: 'Koden måste bestå av 6 siffror.',
+      criteriaMinLength: 'Minst 8 tecken',
+      criteriaUppercase: 'Stor bokstav (A-Z)',
+      criteriaLowercase: 'Liten bokstav (a-z)',
+      criteriaNumber: 'Siffra (0-9)',
       registerBtn: 'Skapa butik & Logga in',
       loginBtn: 'Logga in',
       switchToLogin: 'Har du redan ett konto? Logga in här',
@@ -680,7 +706,20 @@ export const translations: Record<LanguageCode, Translations> = {
       emailLabel: 'Email address',
       emailPlaceholder: 'store@example.com',
       passwordLabel: 'Password',
-      passwordPlaceholder: 'At least 6 characters',
+      passwordPlaceholder: 'At least 8 characters (A-Z, a-z, 0-9)',
+      passwordHint: 'At least 8 characters with uppercase, lowercase, and a number',
+      valStoreNameRequired: 'Store name must be at least 2 characters.',
+      valEmailInvalid: 'Please enter a valid email address.',
+      valPasswordRequired: 'Password is required.',
+      valPasswordMinLength: 'Password must be at least 8 characters.',
+      valPasswordUppercase: 'Password must contain at least one uppercase letter.',
+      valPasswordLowercase: 'Password must contain at least one lowercase letter.',
+      valPasswordNumber: 'Password must contain at least one number.',
+      valOtpInvalid: 'The code must be 6 digits.',
+      criteriaMinLength: 'At least 8 characters',
+      criteriaUppercase: 'Uppercase letter (A-Z)',
+      criteriaLowercase: 'Lowercase letter (a-z)',
+      criteriaNumber: 'Number (0-9)',
       registerBtn: 'Create store & Sign in',
       loginBtn: 'Sign in',
       switchToLogin: 'Already have an account? Sign in here',
@@ -1004,7 +1043,20 @@ export const translations: Record<LanguageCode, Translations> = {
       emailLabel: 'E-Mail-Adresse',
       emailPlaceholder: 'laden@beispiel.de',
       passwordLabel: 'Passwort',
-      passwordPlaceholder: 'Mindestens 6 Zeichen',
+      passwordPlaceholder: 'Mindestens 8 Zeichen (A-Z, a-z, 0-9)',
+      passwordHint: 'Mindestens 8 Zeichen mit Großbuchstabe, Kleinbuchstabe und Zahl',
+      valStoreNameRequired: 'Der Geschäftsname muss mindestens 2 Zeichen lang sein.',
+      valEmailInvalid: 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
+      valPasswordRequired: 'Passwort ist erforderlich.',
+      valPasswordMinLength: 'Das Passwort muss mindestens 8 Zeichen lang sein.',
+      valPasswordUppercase: 'Das Passwort muss mindestens einen Großbuchstaben enthalten.',
+      valPasswordLowercase: 'Das Passwort muss mindestens einen Kleinbuchstaben enthalten.',
+      valPasswordNumber: 'Das Passwort muss mindestens eine Zahl enthalten.',
+      valOtpInvalid: 'Der Code muss aus 6 Ziffern bestehen.',
+      criteriaMinLength: 'Mindestens 8 Zeichen',
+      criteriaUppercase: 'Großbuchstabe (A-Z)',
+      criteriaLowercase: 'Kleinbuchstabe (a-z)',
+      criteriaNumber: 'Zahl (0-9)',
       registerBtn: 'Geschäft erstellen & Anmelden',
       loginBtn: 'Anmelden',
       switchToLogin: 'Bereits ein Konto? Hier anmelden',
@@ -1330,7 +1382,20 @@ export const translations: Record<LanguageCode, Translations> = {
       emailLabel: 'Correo electrónico',
       emailPlaceholder: 'tienda@ejemplo.es',
       passwordLabel: 'Contraseña',
-      passwordPlaceholder: 'Mínimo 6 caracteres',
+      passwordPlaceholder: 'Mínimo 8 caracteres (A-Z, a-z, 0-9)',
+      passwordHint: 'Mínimo 8 caracteres con mayúscula, minúscula y un número',
+      valStoreNameRequired: 'El nombre de la tienda debe tener al menos 2 caracteres.',
+      valEmailInvalid: 'Introduce un correo electrónico válido.',
+      valPasswordRequired: 'La contraseña es obligatoria.',
+      valPasswordMinLength: 'La contraseña debe tener al menos 8 caracteres.',
+      valPasswordUppercase: 'La contraseña debe contener al menos una letra mayúscula.',
+      valPasswordLowercase: 'La contraseña debe contener al menos una letra minúscula.',
+      valPasswordNumber: 'La contraseña debe contener al menos un número.',
+      valOtpInvalid: 'El código debe tener 6 dígitos.',
+      criteriaMinLength: 'Mínimo 8 caracteres',
+      criteriaUppercase: 'Mayúscula (A-Z)',
+      criteriaLowercase: 'Minúscula (a-z)',
+      criteriaNumber: 'Número (0-9)',
       registerBtn: 'Crear tienda e Iniciar sesión',
       loginBtn: 'Iniciar sesión',
       switchToLogin: '¿Ya tienes una cuenta? Inicia sesión aquí',

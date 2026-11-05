@@ -24,6 +24,11 @@ import { setDemoModeActive, saveStoreSettings, getStoreSettings } from '../db/op
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getAuthRedirectUrl } from '../services/authDeepLink';
+import {
+  validateLogin,
+  validateRegister,
+  validateOtp,
+} from '../services/authValidation';
 
 interface LoginScreenProps {
   onAuthenticated: () => void;
@@ -45,11 +50,48 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
 
+  // Validation errors
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+
   // Verification state
   const [verificationEmail, setVerificationEmail] = useState('');
   const [verificationType, setVerificationType] = useState<'signup' | 'magiclink'>('signup');
 
   const [loading, setLoading] = useState(false);
+
+  // Field change handlers that clear specific errors
+  const handleStoreNameChange = (val: string) => {
+    setStoreName(val);
+    if (errors.storeName) {
+      setErrors((prev) => ({ ...prev, storeName: undefined }));
+    }
+  };
+
+  const handleEmailChange = (val: string) => {
+    setEmail(val);
+    if (errors.email) {
+      setErrors((prev) => ({ ...prev, email: undefined }));
+    }
+  };
+
+  const handlePasswordChange = (val: string) => {
+    setPassword(val);
+    if (errors.password) {
+      setErrors((prev) => ({ ...prev, password: undefined }));
+    }
+  };
+
+  const handleOtpChange = (val: string) => {
+    setOtpCode(val);
+    if (errors.otp) {
+      setErrors((prev) => ({ ...prev, otp: undefined }));
+    }
+  };
+
+  const handleToggleRegister = () => {
+    setIsRegistering(!isRegistering);
+    setErrors({});
+  };
 
   // Handle password login or registration
   const handlePasswordAuth = async () => {
@@ -61,16 +103,22 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
       return;
     }
 
-    if (!email.trim() || !password.trim()) {
-      Alert.alert(t.login.missingCredentialsTitle, t.login.missingCredentialsMsg);
-      return;
+    // Zod validation
+    if (isRegistering) {
+      const val = validateRegister({ storeName, email, password }, t);
+      if (!val.success) {
+        setErrors(val.errors);
+        return;
+      }
+    } else {
+      const val = validateLogin({ email, password }, t);
+      if (!val.success) {
+        setErrors(val.errors);
+        return;
+      }
     }
 
-    if (isRegistering && !storeName.trim()) {
-      Alert.alert(t.login.missingStoreNameTitle, t.login.missingStoreNameMsg);
-      return;
-    }
-
+    setErrors({});
     setLoading(true);
     try {
       await setDemoModeActive(false);
@@ -142,21 +190,20 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
 
   // Handle verifying OTP code
   const handleVerifyOtp = async () => {
-    if (!verificationEmail.trim()) {
-      Alert.alert(t.login.missingCredentialsTitle, t.login.emailPlaceholder);
+    const targetEmail = (verificationEmail || email).trim();
+
+    // Zod validation for OTP
+    const val = validateOtp({ email: targetEmail, otp: otpCode }, t);
+    if (!val.success) {
+      setErrors(val.errors);
       return;
     }
 
-    if (!otpCode.trim()) {
-      Alert.alert(t.login.missingCredentialsTitle, t.login.missingOtp);
-      return;
-    }
-
+    setErrors({});
     setLoading(true);
     try {
       await setDemoModeActive(false);
 
-      const targetEmail = verificationEmail.trim();
       const code = otpCode.trim();
       const primaryType = verificationType === 'signup' ? 'signup' : 'email';
 
@@ -207,7 +254,8 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
 
   // Handle resending verification code
   const handleResend = async () => {
-    if (!verificationEmail.trim()) return;
+    const targetEmail = (verificationEmail || email).trim();
+    if (!targetEmail) return;
 
     setLoading(true);
     try {
@@ -216,7 +264,7 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
       if (verificationType === 'signup') {
         const { error } = await supabase.auth.resend({
           type: 'signup',
-          email: verificationEmail.trim(),
+          email: targetEmail,
           options: {
             emailRedirectTo: redirectUrl,
           },
@@ -224,7 +272,7 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
         if (error) throw error;
       } else {
         const { error } = await supabase.auth.signInWithOtp({
-          email: verificationEmail.trim(),
+          email: targetEmail,
           options: {
             emailRedirectTo: redirectUrl,
           },
@@ -271,39 +319,52 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>{t.login.storeNameLabel}</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, errors.storeName && styles.inputError]}
                     placeholder={t.login.storeNamePlaceholder}
                     value={storeName}
-                    onChangeText={setStoreName}
+                    onChangeText={handleStoreNameChange}
                     placeholderTextColor={colors.placeholder}
                   />
+                  {errors.storeName && (
+                    <Text style={styles.fieldErrorText}>{errors.storeName}</Text>
+                  )}
                 </View>
               )}
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{t.login.emailLabel}</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, errors.email && styles.inputError]}
                   placeholder={t.login.emailPlaceholder}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={handleEmailChange}
                   placeholderTextColor={colors.placeholder}
                 />
+                {errors.email && (
+                  <Text style={styles.fieldErrorText}>{errors.email}</Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{t.login.passwordLabel}</Text>
                 <TextInput
-                  style={styles.input}
-                  placeholder={t.login.passwordPlaceholder}
+                  style={[styles.input, errors.password && styles.inputError]}
+                  placeholder={
+                    isRegistering
+                      ? t.login.passwordPlaceholder
+                      : t.login.passwordLabel
+                  }
                   secureTextEntry
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={handlePasswordChange}
                   placeholderTextColor={colors.placeholder}
                 />
+                {errors.password && (
+                  <Text style={styles.fieldErrorText}>{errors.password}</Text>
+                )}
               </View>
 
               <TouchableOpacity
@@ -322,7 +383,7 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
 
               <TouchableOpacity
                 style={styles.switchModeButton}
-                onPress={() => setIsRegistering(!isRegistering)}
+                onPress={handleToggleRegister}
               >
                 <Text style={styles.switchModeText}>
                   {isRegistering
@@ -330,25 +391,15 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                     : t.login.switchToRegister}
                 </Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={() => {
-                  setVerificationEmail(email);
-                  setVerificationType('signup');
-                  setView('verify');
-                }}
-              >
-                <Text style={styles.linkButtonText}>
-                  {t.login.openOtpVerification}
-                </Text>
-              </TouchableOpacity>
             </>
           ) : (
             <>
               <TouchableOpacity
                 style={styles.backButton}
-                onPress={() => setView('login')}
+                onPress={() => {
+                  setErrors({});
+                  setView('login');
+                }}
               >
                 <ArrowLeft size={18} color={colors.textSecondary} />
                 <Text style={styles.backButtonText}>{t.login.backToLogin}</Text>
@@ -366,22 +417,6 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
                 </Text>
               </View>
 
-              {!verificationEmail && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>{t.login.emailLabel}</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t.login.emailPlaceholder}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    value={verificationEmail}
-                    onChangeText={setVerificationEmail}
-                    placeholderTextColor={colors.placeholder}
-                  />
-                </View>
-              )}
-
               <View style={styles.infoNoteBox}>
                 <CheckCircle2 size={16} color={colors.primaryStrongText} />
                 <Text style={styles.infoNoteText}>
@@ -392,14 +427,23 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{t.login.otpLabel}</Text>
                 <TextInput
-                  style={[styles.input, styles.otpInput]}
+                  style={[
+                    styles.input,
+                    styles.otpInput,
+                    errors.otp && styles.inputError,
+                  ]}
                   placeholder={t.login.otpPlaceholder}
                   keyboardType="number-pad"
                   maxLength={6}
                   value={otpCode}
-                  onChangeText={setOtpCode}
+                  onChangeText={handleOtpChange}
                   placeholderTextColor={colors.placeholder}
                 />
+                {errors.otp && (
+                  <Text style={[styles.fieldErrorText, styles.centeredError]}>
+                    {errors.otp}
+                  </Text>
+                )}
               </View>
 
               <TouchableOpacity
@@ -537,6 +581,19 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surfaceInput,
       color: colors.text,
     },
+    inputError: {
+      borderColor: '#ef4444',
+      borderWidth: 1.5,
+    },
+    fieldErrorText: {
+      color: '#ef4444',
+      fontSize: 12,
+      fontWeight: '600',
+      marginTop: 4,
+    },
+    centeredError: {
+      textAlign: 'center',
+    },
     otpInput: {
       textAlign: 'center',
       fontSize: 24,
@@ -597,17 +654,6 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.primaryText,
       fontSize: 14,
       fontWeight: '600',
-    },
-    linkButton: {
-      marginTop: 10,
-      alignItems: 'center',
-      paddingVertical: 6,
-    },
-    linkButtonText: {
-      color: colors.textMuted,
-      fontSize: 13,
-      fontWeight: '500',
-      textDecorationLine: 'underline',
     },
     backButton: {
       flexDirection: 'row',
