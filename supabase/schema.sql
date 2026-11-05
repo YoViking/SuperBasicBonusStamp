@@ -1,7 +1,7 @@
 -- ============================================================================
 -- SuperBasicBonusStamp - Supabase PostgreSQL Schema
 -- Kör detta skript i Supabase Dashboard -> SQL Editor -> New Query
--- Skriptet är idempotent och kan köras säkert flera gånger.
+-- Skriptet är idempotent och kan köras säkert flera gånger på både nya och befintliga databaser.
 -- ============================================================================
 
 -- 1. STORES (En rad per butik, kopplad till Supabase Auth user.id)
@@ -67,13 +67,13 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 CREATE TABLE IF NOT EXISTS public.shopify_integrations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
-  shop_domain TEXT NOT NULL UNIQUE,                -- t.ex. "min-butik.myshopify.com"
-  access_token TEXT NOT NULL,                      -- Admin API token (shpat_...)
-  webhook_secret TEXT NOT NULL,                    -- Webhook signing secret
+  shop_domain TEXT NOT NULL UNIQUE,
+  access_token TEXT NOT NULL,
+  webhook_secret TEXT NOT NULL,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   consent_mode TEXT NOT NULL DEFAULT 'RESPECT_OUTREACH' CHECK (consent_mode IN ('RESPECT_OUTREACH', 'REQUIRE_CONSENT', 'ALWAYS_ENROLL')),
-  eligible_product_types TEXT[] NOT NULL DEFAULT '{}', -- Tom lista = alla varor ger poäng
-  points_per_currency NUMERIC NOT NULL DEFAULT 1,  -- T.ex. 1 poäng per 1 kr
+  eligible_product_types TEXT[] NOT NULL DEFAULT '{}',
+  points_per_currency NUMERIC NOT NULL DEFAULT 1,
   discount_code_prefix TEXT NOT NULL DEFAULT 'BONUS-',
   discount_validity_days INTEGER NOT NULL DEFAULT 90,
   sync_articles BOOLEAN NOT NULL DEFAULT FALSE,
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS public.shopify_orders (
   eligible_subtotal NUMERIC NOT NULL DEFAULT 0,
   points_awarded NUMERIC NOT NULL DEFAULT 0,
   discounts_applied TEXT[] NOT NULL DEFAULT '{}',
-  source_name TEXT NOT NULL DEFAULT 'web',         -- 'web', 'pos', etc.
+  source_name TEXT NOT NULL DEFAULT 'web',
   marketing_consent_given BOOLEAN NOT NULL DEFAULT FALSE,
   raw_payload JSONB,
   processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -105,10 +105,10 @@ CREATE TABLE IF NOT EXISTS public.shopify_discount_codes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   store_id UUID NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
-  code TEXT NOT NULL UNIQUE,                       -- T.ex. BONUS-K8X29A
+  code TEXT NOT NULL UNIQUE,
   shopify_price_rule_id TEXT NOT NULL,
   shopify_discount_id TEXT,
-  discount_amount NUMERIC NOT NULL,                -- Värde i kr (motsvarande reward_amount)
+  discount_amount NUMERIC NOT NULL,
   status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'USED', 'EXPIRED', 'REVOKED')),
   used_at TIMESTAMPTZ,
   used_in_order_id TEXT,
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS public.shopify_discount_codes (
 );
 
 -- ============================================================================
--- ROW LEVEL SECURITY (RLS) - Varje butik ser och ändrar ENDAST sin egen data
+-- ROW LEVEL SECURITY (RLS)
 -- ============================================================================
 
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
@@ -128,61 +128,44 @@ ALTER TABLE public.shopify_integrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shopify_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shopify_discount_codes ENABLE ROW LEVEL SECURITY;
 
--- Policies för stores
-DROP POLICY IF EXISTS "Butik hanterar sin egen profil" ON public.stores;
-CREATE POLICY "Butik hanterar sin egen profil"
-  ON public.stores
-  FOR ALL
-  USING (auth.uid() = id)
-  WITH CHECK (auth.uid() = id);
+-- Idempotent skapande av RLS-policies via standard PostgreSQL DO-block
+DO $$
+BEGIN
+  -- 1. stores
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'stores' AND policyname = 'stores_manage_own') THEN
+    CREATE POLICY "stores_manage_own" ON public.stores FOR ALL USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+  END IF;
 
--- Policies för customers
-DROP POLICY IF EXISTS "Butik hanterar sina egna kunder" ON public.customers;
-CREATE POLICY "Butik hanterar sina egna kunder"
-  ON public.customers
-  FOR ALL
-  USING (auth.uid() = store_id)
-  WITH CHECK (auth.uid() = store_id);
+  -- 2. customers
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'customers' AND policyname = 'customers_manage_own') THEN
+    CREATE POLICY "customers_manage_own" ON public.customers FOR ALL USING (auth.uid() = store_id) WITH CHECK (auth.uid() = store_id);
+  END IF;
 
--- Policies för articles
-DROP POLICY IF EXISTS "Butik hanterar sina egna artiklar" ON public.articles;
-CREATE POLICY "Butik hanterar sina egna artiklar"
-  ON public.articles
-  FOR ALL
-  USING (auth.uid() = store_id)
-  WITH CHECK (auth.uid() = store_id);
+  -- 3. articles
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'articles' AND policyname = 'articles_manage_own') THEN
+    CREATE POLICY "articles_manage_own" ON public.articles FOR ALL USING (auth.uid() = store_id) WITH CHECK (auth.uid() = store_id);
+  END IF;
 
--- Policies för transactions
-DROP POLICY IF EXISTS "Butik hanterar sina egna transaktioner" ON public.transactions;
-CREATE POLICY "Butik hanterar sina egna transaktioner"
-  ON public.transactions
-  FOR ALL
-  USING (auth.uid() = store_id)
-  WITH CHECK (auth.uid() = store_id);
+  -- 4. transactions
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'transactions' AND policyname = 'transactions_manage_own') THEN
+    CREATE POLICY "transactions_manage_own" ON public.transactions FOR ALL USING (auth.uid() = store_id) WITH CHECK (auth.uid() = store_id);
+  END IF;
 
--- Policies för shopify_integrations
-DROP POLICY IF EXISTS "Butik hanterar sin egen Shopify-koppling" ON public.shopify_integrations;
-CREATE POLICY "Butik hanterar sin egen Shopify-koppling"
-  ON public.shopify_integrations
-  FOR ALL
-  USING (auth.uid() = store_id)
-  WITH CHECK (auth.uid() = store_id);
+  -- 5. shopify_integrations
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'shopify_integrations' AND policyname = 'shopify_integrations_manage_own') THEN
+    CREATE POLICY "shopify_integrations_manage_own" ON public.shopify_integrations FOR ALL USING (auth.uid() = store_id) WITH CHECK (auth.uid() = store_id);
+  END IF;
 
--- Policies för shopify_orders
-DROP POLICY IF EXISTS "Butik läser sina egna Shopify-ordrar" ON public.shopify_orders;
-CREATE POLICY "Butik läser sina egna Shopify-ordrar"
-  ON public.shopify_orders
-  FOR ALL
-  USING (auth.uid() = store_id)
-  WITH CHECK (auth.uid() = store_id);
+  -- 6. shopify_orders
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'shopify_orders' AND policyname = 'shopify_orders_manage_own') THEN
+    CREATE POLICY "shopify_orders_manage_own" ON public.shopify_orders FOR ALL USING (auth.uid() = store_id) WITH CHECK (auth.uid() = store_id);
+  END IF;
 
--- Policies för shopify_discount_codes
-DROP POLICY IF EXISTS "Butik hanterar sina egna Shopify-rabattkoder" ON public.shopify_discount_codes;
-CREATE POLICY "Butik hanterar sina egna Shopify-rabattkoder"
-  ON public.shopify_discount_codes
-  FOR ALL
-  USING (auth.uid() = store_id)
-  WITH CHECK (auth.uid() = store_id);
+  -- 7. shopify_discount_codes
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'shopify_discount_codes' AND policyname = 'shopify_discount_codes_manage_own') THEN
+    CREATE POLICY "shopify_discount_codes_manage_own" ON public.shopify_discount_codes FOR ALL USING (auth.uid() = store_id) WITH CHECK (auth.uid() = store_id);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- AUTOMATISK SKAPANDE AV BUTIKSPROFIL VID NY REGISTRERING
