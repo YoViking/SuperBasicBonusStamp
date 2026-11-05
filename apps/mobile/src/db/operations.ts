@@ -32,6 +32,7 @@ export interface Article {
 export interface Customer {
   id: string;
   phoneNumber: string;
+  email?: string | null;
   currentBalance: number;
   totalSpent: number;
   optOutOutreach?: boolean;
@@ -310,6 +311,7 @@ function mapCustomerFromDb(row: any): Customer {
   return {
     id: String(row.id),
     phoneNumber: row.phone_number,
+    email: row.email ?? null,
     currentBalance: Number(row.current_balance ?? 0),
     totalSpent: Number(row.total_spent ?? 0),
     optOutOutreach: Boolean(row.opt_out_outreach ?? false),
@@ -407,8 +409,12 @@ export const getCustomer = async (phone: string): Promise<Customer | undefined> 
   return data ? mapCustomerFromDb(data) : undefined;
 };
 
-export const createCustomer = async (phone: string): Promise<Customer> => {
+export const createCustomer = async (
+  phone: string,
+  email?: string | null
+): Promise<Customer> => {
   const cleanPhone = phone.trim();
+  const cleanEmail = email ? email.trim().toLowerCase() : null;
 
   if (await isDemoModeActive()) {
     const raw = await AsyncStorage.getItem(DEMO_CUSTOMERS_KEY);
@@ -416,6 +422,7 @@ export const createCustomer = async (phone: string): Promise<Customer> => {
     const newCustomer: Customer = {
       id: Date.now().toString(),
       phoneNumber: cleanPhone,
+      email: cleanEmail,
       currentBalance: 0,
       totalSpent: 0,
       createdAt: new Date().toISOString(),
@@ -430,6 +437,7 @@ export const createCustomer = async (phone: string): Promise<Customer> => {
     .insert({
       store_id: userId,
       phone_number: cleanPhone,
+      email: cleanEmail,
       current_balance: 0,
       total_spent: 0,
     })
@@ -579,3 +587,379 @@ export const processPurchase = async (
 
   return { bonusEarned, newBalance, threshold, actualAdded, storeSettings: settings };
 };
+
+/** ============================================================================
+ * SHOPIFY INTEGRATION OPERATIONS
+ * ============================================================================ */
+
+export type ShopifyConsentMode = 'RESPECT_OUTREACH' | 'REQUIRE_CONSENT' | 'ALWAYS_ENROLL';
+
+export interface ShopifyIntegration {
+  id: string;
+  storeId: string;
+  shopDomain: string;
+  accessToken: string;
+  webhookSecret: string;
+  isActive: boolean;
+  consentMode: ShopifyConsentMode;
+  eligibleProductTypes: string[];
+  pointsPerCurrency: number;
+  discountCodePrefix: string;
+  discountValidityDays: number;
+  syncArticles: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ShopifyDiscountCode {
+  id: string;
+  storeId: string;
+  customerId: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  code: string;
+  shopifyPriceRuleId: string;
+  shopifyDiscountId?: string;
+  discountAmount: number;
+  status: 'ACTIVE' | 'USED' | 'EXPIRED' | 'REVOKED';
+  usedAt?: string;
+  usedInOrderId?: string;
+  expiresAt?: string;
+  createdAt: string;
+}
+
+export interface ShopifyOrderSummary {
+  id: string;
+  storeId: string;
+  shopifyOrderId: string;
+  orderNumber: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  totalPrice: number;
+  pointsAwarded: number;
+  discountsApplied: string[];
+  sourceName: string;
+  processedAt: string;
+}
+
+const DEMO_SHOPIFY_INTEGRATION_KEY = '@sbbs_demo_shopify_integration';
+const DEMO_SHOPIFY_DISCOUNTS_KEY = '@sbbs_demo_shopify_discounts';
+const DEMO_SHOPIFY_ORDERS_KEY = '@sbbs_demo_shopify_orders';
+
+function mapShopifyIntegrationFromDb(row: any): ShopifyIntegration {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    shopDomain: row.shop_domain || '',
+    accessToken: row.access_token || '',
+    webhookSecret: row.webhook_secret || '',
+    isActive: Boolean(row.is_active ?? true),
+    consentMode: row.consent_mode || 'RESPECT_OUTREACH',
+    eligibleProductTypes: Array.isArray(row.eligible_product_types)
+      ? row.eligible_product_types
+      : [],
+    pointsPerCurrency: Number(row.points_per_currency ?? 1),
+    discountCodePrefix: row.discount_code_prefix || 'BONUS-',
+    discountValidityDays: Number(row.discount_validity_days ?? 90),
+    syncArticles: Boolean(row.sync_articles ?? false),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export const getShopifyIntegration = async (): Promise<ShopifyIntegration | null> => {
+  if (await isDemoModeActive()) {
+    const raw = await AsyncStorage.getItem(DEMO_SHOPIFY_INTEGRATION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }
+
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from('shopify_integrations')
+    .select('*')
+    .eq('store_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Fel vid hämtning av Shopify-integration:', error);
+    return null;
+  }
+
+  return data ? mapShopifyIntegrationFromDb(data) : null;
+};
+
+export const saveShopifyIntegration = async (
+  integration: Omit<ShopifyIntegration, 'id' | 'storeId' | 'createdAt' | 'updatedAt'>
+): Promise<ShopifyIntegration> => {
+  const cleanDomain = integration.shopDomain
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
+
+  const payload = {
+    shop_domain: cleanDomain,
+    access_token: integration.accessToken.trim(),
+    webhook_secret: integration.webhookSecret.trim(),
+    is_active: integration.isActive,
+    consent_mode: integration.consentMode,
+    eligible_product_types: integration.eligibleProductTypes || [],
+    points_per_currency: integration.pointsPerCurrency,
+    discount_code_prefix: integration.discountCodePrefix.trim() || 'BONUS-',
+    discount_validity_days: integration.discountValidityDays,
+    sync_articles: integration.syncArticles,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (await isDemoModeActive()) {
+    const saved: ShopifyIntegration = {
+      id: 'demo-shopify-int',
+      storeId: 'demo-store',
+      ...payload,
+      createdAt: new Date().toISOString(),
+    };
+    await AsyncStorage.setItem(DEMO_SHOPIFY_INTEGRATION_KEY, JSON.stringify(saved));
+    return saved;
+  }
+
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from('shopify_integrations')
+    .upsert({
+      store_id: userId,
+      ...payload,
+    }, { onConflict: 'store_id' })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapShopifyIntegrationFromDb(data);
+};
+
+export const testShopifyConnection = async (
+  shopDomain: string,
+  accessToken: string
+): Promise<{ success: boolean; shopName?: string; error?: string }> => {
+  const cleanDomain = shopDomain
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
+
+  if (!cleanDomain || !accessToken.trim()) {
+    return { success: false, error: 'Både butiksdomän och access token krävs.' };
+  }
+
+  try {
+    const res = await fetch(`https://${cleanDomain}/admin/api/2024-10/shop.json`, {
+      method: 'GET',
+      headers: {
+        'X-Shopify-Access-Token': accessToken.trim(),
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Ogiltig Access Token (401 Unauthorized).' };
+      }
+      if (res.status === 404) {
+        return { success: false, error: 'Shopify-butiken kunde inte hittas (404 Not Found).' };
+      }
+      const errText = await res.text();
+      return { success: false, error: `Shopify svarade med status ${res.status}: ${errText}` };
+    }
+
+    const data = await res.json();
+    return {
+      success: true,
+      shopName: data.shop?.name || cleanDomain,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Kunde inte nå Shopify. Kontrollera internetanslutningen.',
+    };
+  }
+};
+
+export const getShopifyDiscountCodes = async (
+  statusFilter: 'ALL' | 'ACTIVE' | 'USED' = 'ALL'
+): Promise<ShopifyDiscountCode[]> => {
+  if (await isDemoModeActive()) {
+    const raw = await AsyncStorage.getItem(DEMO_SHOPIFY_DISCOUNTS_KEY);
+    const list: ShopifyDiscountCode[] = raw ? JSON.parse(raw) : [];
+    if (statusFilter === 'ALL') return list;
+    return list.filter((c) => c.status === statusFilter);
+  }
+
+  const userId = await getCurrentUserId();
+  let query = supabase
+    .from('shopify_discount_codes')
+    .select('*, customers(phone_number, email)')
+    .eq('store_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (statusFilter !== 'ALL') {
+    query = query.eq('status', statusFilter);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    storeId: row.store_id,
+    customerId: row.customer_id,
+    customerPhone: row.customers?.phone_number,
+    customerEmail: row.customers?.email,
+    code: row.code,
+    shopifyPriceRuleId: row.shopify_price_rule_id,
+    shopifyDiscountId: row.shopify_discount_id,
+    discountAmount: Number(row.discount_amount ?? 0),
+    status: row.status,
+    usedAt: row.used_at,
+    usedInOrderId: row.used_in_order_id,
+    expiresAt: row.expires_at,
+    createdAt: row.created_at,
+  }));
+};
+
+export const getActiveDiscountCodesForCustomer = async (
+  customerId: string
+): Promise<ShopifyDiscountCode[]> => {
+  if (await isDemoModeActive()) {
+    const list = await getShopifyDiscountCodes('ACTIVE');
+    return list.filter((d) => d.customerId === customerId);
+  }
+
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from('shopify_discount_codes')
+    .select('*')
+    .eq('store_id', userId)
+    .eq('customer_id', customerId)
+    .eq('status', 'ACTIVE')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    storeId: row.store_id,
+    customerId: row.customer_id,
+    code: row.code,
+    shopifyPriceRuleId: row.shopify_price_rule_id,
+    shopifyDiscountId: row.shopify_discount_id,
+    discountAmount: Number(row.discount_amount ?? 0),
+    status: row.status,
+    usedAt: row.used_at,
+    usedInOrderId: row.used_in_order_id,
+    expiresAt: row.expires_at,
+    createdAt: row.created_at,
+  }));
+};
+
+export const redeemShopifyDiscountCodeInPos = async (
+  codeId: string
+): Promise<void> => {
+  if (await isDemoModeActive()) {
+    const raw = await AsyncStorage.getItem(DEMO_SHOPIFY_DISCOUNTS_KEY);
+    const list: ShopifyDiscountCode[] = raw ? JSON.parse(raw) : [];
+    const updated = list.map((c) =>
+      c.id === codeId
+        ? { ...c, status: 'USED' as const, usedAt: new Date().toISOString(), usedInOrderId: 'POS-INSTORE' }
+        : c
+    );
+    await AsyncStorage.setItem(DEMO_SHOPIFY_DISCOUNTS_KEY, JSON.stringify(updated));
+    return;
+  }
+
+  const userId = await getCurrentUserId();
+  const { error } = await supabase
+    .from('shopify_discount_codes')
+    .update({
+      status: 'USED',
+      used_at: new Date().toISOString(),
+      used_in_order_id: 'POS-INSTORE',
+    })
+    .eq('id', codeId)
+    .eq('store_id', userId);
+
+  if (error) throw new Error(error.message);
+};
+
+export const getRecentShopifyOrders = async (limit: number = 10): Promise<ShopifyOrderSummary[]> => {
+  if (await isDemoModeActive()) {
+    const raw = await AsyncStorage.getItem(DEMO_SHOPIFY_ORDERS_KEY);
+    const list: ShopifyOrderSummary[] = raw ? JSON.parse(raw) : [];
+    return list.slice(0, limit);
+  }
+
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from('shopify_orders')
+    .select('*, customers(phone_number, email)')
+    .eq('store_id', userId)
+    .order('processed_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    storeId: row.store_id,
+    shopifyOrderId: row.shopify_order_id,
+    orderNumber: row.order_number || `#${row.shopify_order_id}`,
+    customerPhone: row.customers?.phone_number,
+    customerEmail: row.customers?.email,
+    totalPrice: Number(row.total_price ?? 0),
+    pointsAwarded: Number(row.points_awarded ?? 0),
+    discountsApplied: Array.isArray(row.discounts_applied) ? row.discounts_applied : [],
+    sourceName: row.source_name || 'web',
+    processedAt: row.processed_at,
+  }));
+};
+
+export const syncShopifyArticles = async (): Promise<{ count: number; productTypes: string[] }> => {
+  const integration = await getShopifyIntegration();
+  if (!integration || !integration.shopDomain || !integration.accessToken) {
+    throw new Error('Shopify-uppgifter saknas. Konfigurera kopplingen först.');
+  }
+
+  if (await isDemoModeActive()) {
+    // Simulera synk i demo-läge
+    const demoArticles = [
+      { id: Date.now().toString(), sku: 'SHOPIFY-101', name: 'Demo Kaffe Mörkrost', price: 89, category: 'Kaffe', salesCount: 0 },
+      { id: (Date.now() + 1).toString(), sku: 'SHOPIFY-102', name: 'Demo Kaffekopp Porslin', price: 129, category: 'Tillbehör', salesCount: 0 },
+    ];
+    await AsyncStorage.setItem(DEMO_ARTICLES_KEY, JSON.stringify(demoArticles));
+    return { count: 2, productTypes: ['Kaffe', 'Tillbehör'] };
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+  const edgeFunctionUrl = `${supabaseUrl}/functions/v1/sync-shopify-products`;
+
+  const res = await fetch(edgeFunctionUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Synk misslyckades med status ${res.status}`);
+  }
+
+  const data = await res.json();
+  return {
+    count: data.count || 0,
+    productTypes: data.productTypes || [],
+  };
+};
+
