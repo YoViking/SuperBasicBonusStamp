@@ -23,6 +23,7 @@ import {
   ScanBarcode,
   Flame,
   X,
+  Tag,
 } from 'lucide-react-native';
 import {
   Article,
@@ -32,6 +33,9 @@ import {
   getCustomer,
   deleteCustomerById,
   processPurchase,
+  ShopifyDiscountCode,
+  getActiveDiscountCodesForCustomer,
+  redeemShopifyDiscountCodeInPos,
 } from '../db/operations';
 import {
   formatSmsMessage,
@@ -67,6 +71,7 @@ export default function PosScreen() {
   const [currentBalance, setCurrentBalance] = useState<number>(0);
   const [availableBonuses, setAvailableBonuses] = useState<number>(0);
   const [appliedBonusesCount, setAppliedBonusesCount] = useState<number>(0);
+  const [activeShopifyCoupons, setActiveShopifyCoupons] = useState<ShopifyDiscountCode[]>([]);
 
   // Artikelläge-states
   const [selectedCategory, setSelectedCategory] = useState<string>('ALLA');
@@ -111,6 +116,7 @@ export default function PosScreen() {
     setCurrentBalance(0);
     setAvailableBonuses(0);
     setAppliedBonusesCount(0);
+    setActiveShopifyCoupons([]);
   };
 
   const resetAllAfterPurchase = () => {
@@ -119,6 +125,29 @@ export default function PosScreen() {
     setQuickStamps(1);
     setQuickAmount('');
     resetCustomerState();
+  };
+
+  const handleRedeemShopifyCoupon = async (coupon: ShopifyDiscountCode) => {
+    Alert.alert(
+      t.shopify.inStoreRedeemBtn,
+      `${t.shopify.inStoreRedeemConfirm}\n\n${coupon.code} (${coupon.discountAmount} ${currency})`,
+      [
+        { text: t.pos.cancel, style: 'cancel' },
+        {
+          text: t.shopify.inStoreRedeemBtn,
+          onPress: async () => {
+            try {
+              await redeemShopifyDiscountCodeInPos(coupon.id);
+              Alert.alert('Shopify', t.pos.shopifyDiscountRedeemedAlert);
+              setActiveShopifyCoupons((prev) => prev.filter((c) => c.id !== coupon.id));
+              setAppliedBonusesCount((prev) => prev + 1);
+            } catch (err: any) {
+              Alert.alert(t.pos.errorTitle, err.message);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const searchCustomer = async () => {
@@ -136,6 +165,7 @@ export default function PosScreen() {
         setCurrentBalance(0);
         setAvailableBonuses(0);
         setAppliedBonusesCount(0);
+        setActiveShopifyCoupons([]);
       } else {
         setCustomerId(customer.id);
         setIsNewCustomer(customer.currentBalance === 0 && customer.totalSpent === 0);
@@ -143,6 +173,14 @@ export default function PosScreen() {
         const bonusesFound = Math.floor(customer.currentBalance / threshold);
         setAvailableBonuses(bonusesFound);
         setAppliedBonusesCount(0);
+
+        try {
+          const coupons = await getActiveDiscountCodesForCustomer(customer.id);
+          setActiveShopifyCoupons(coupons);
+        } catch (couponErr) {
+          console.warn('Kunde inte läsa Shopify-kuponger för kund:', couponErr);
+          setActiveShopifyCoupons([]);
+        }
       }
     } catch (error: any) {
       Alert.alert(t.pos.searchErrorTitle, error.message);
@@ -533,6 +571,37 @@ export default function PosScreen() {
                   </TouchableOpacity>
                 </View>
               )}
+            </View>
+          )}
+
+          {/* AKTIVA SHOPIFY-RABATTKODER */}
+          {activeShopifyCoupons.length > 0 && (
+            <View style={styles.shopifyCouponContainer}>
+              {activeShopifyCoupons.map((coupon) => (
+                <View key={coupon.id} style={styles.shopifyCouponItem}>
+                  <View style={styles.shopifyCouponLeft}>
+                    <Tag size={16} color={colors.primaryStrongText} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.shopifyCouponTitle}>
+                        {t.pos.activeShopifyDiscount(coupon.code, coupon.discountAmount, currency)}
+                      </Text>
+                      {coupon.expiresAt && (
+                        <Text style={styles.shopifyCouponSub}>
+                          {t.shopify.expiresOn(new Date(coupon.expiresAt).toLocaleDateString())}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.redeemShopifyBtn}
+                    onPress={() => handleRedeemShopifyCoupon(coupon)}
+                  >
+                    <Text style={styles.redeemShopifyBtnText}>
+                      {t.pos.redeemShopifyDiscountBtn}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
             </View>
           )}
         </View>
@@ -1016,6 +1085,48 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '700',
       textDecorationLine: 'underline',
       fontSize: 14,
+    },
+    shopifyCouponContainer: {
+      marginTop: 10,
+      gap: 8,
+    },
+    shopifyCouponItem: {
+      backgroundColor: colors.surfaceInput,
+      borderRadius: 10,
+      padding: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+    },
+    shopifyCouponLeft: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    shopifyCouponTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    shopifyCouponSub: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    redeemShopifyBtn: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 6,
+    },
+    redeemShopifyBtnText: {
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: '700',
     },
     contentArea: {
       flex: 1,

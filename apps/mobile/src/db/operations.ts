@@ -715,8 +715,18 @@ export const saveShopifyIntegration = async (
     const saved: ShopifyIntegration = {
       id: 'demo-shopify-int',
       storeId: 'demo-store',
-      ...payload,
+      shopDomain: cleanDomain,
+      accessToken: integration.accessToken.trim(),
+      webhookSecret: integration.webhookSecret.trim(),
+      isActive: integration.isActive,
+      consentMode: integration.consentMode,
+      eligibleProductTypes: integration.eligibleProductTypes || [],
+      pointsPerCurrency: integration.pointsPerCurrency,
+      discountCodePrefix: integration.discountCodePrefix.trim() || 'BONUS-',
+      discountValidityDays: integration.discountValidityDays,
+      syncArticles: integration.syncArticles,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     await AsyncStorage.setItem(DEMO_SHOPIFY_INTEGRATION_KEY, JSON.stringify(saved));
     return saved;

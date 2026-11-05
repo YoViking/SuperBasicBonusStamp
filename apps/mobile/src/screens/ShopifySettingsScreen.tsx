@@ -216,8 +216,8 @@ export default function ShopifySettingsScreen() {
   const isConfigured = Boolean(shopDomain && accessToken && webhookSecret);
   const statusBadge = isConfigured
     ? isActive
-      ? { label: t.shopify.badgeActive, bg: colors.successLight, text: colors.successText }
-      : { label: t.shopify.badgeInactive, bg: colors.warningLight, text: colors.warningText }
+      ? { label: t.shopify.badgeActive, bg: colors.primarySoft, text: colors.success }
+      : { label: t.shopify.badgeInactive, bg: colors.warningSoft, text: colors.warningText }
     : { label: t.shopify.badgeNotConfigured, bg: colors.border, text: colors.textMuted };
 
   const filteredDiscounts = useMemo(() => {
@@ -647,7 +647,7 @@ const createStyles = (colors: ThemeColors) =>
       width: 44,
       height: 44,
       borderRadius: 10,
-      backgroundColor: colors.primaryLight,
+      backgroundColor: colors.primarySoft,
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
@@ -746,7 +746,7 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: 6,
     },
     input: {
-      backgroundColor: colors.inputBackground,
+      backgroundColor: colors.surfaceInput,
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: 8,
@@ -757,7 +757,7 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: 12,
     },
     webhookBox: {
-      backgroundColor: colors.surfaceSecondary || colors.background,
+      backgroundColor: colors.surfaceMuted,
       borderRadius: 10,
       padding: 12,
       marginBottom: 14,
@@ -804,7 +804,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.primaryLight,
+      backgroundColor: colors.primarySoft,
       paddingVertical: 10,
       borderRadius: 8,
       gap: 6,
@@ -829,11 +829,11 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.border,
       marginBottom: 8,
-      backgroundColor: colors.inputBackground,
+      backgroundColor: colors.surfaceInput,
     },
     radioCardActive: {
       borderColor: colors.primary,
-      backgroundColor: colors.primaryLight,
+      backgroundColor: colors.primarySoft,
     },
     radioCircle: {
       width: 18,
@@ -864,7 +864,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.secondary || colors.primary,
+      backgroundColor: colors.primary,
       paddingVertical: 11,
       borderRadius: 8,
       gap: 8,
@@ -921,7 +921,7 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 14,
     },
     discountCard: {
-      backgroundColor: colors.inputBackground,
+      backgroundColor: colors.surfaceInput,
       borderRadius: 10,
       padding: 12,
       marginBottom: 10,
@@ -952,7 +952,7 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: 6,
     },
     statusPillActive: {
-      backgroundColor: colors.successLight,
+      backgroundColor: colors.primarySoft,
     },
     statusPillUsed: {
       backgroundColor: colors.border,
@@ -962,7 +962,7 @@ const createStyles = (colors: ThemeColors) =>
       fontWeight: '700',
     },
     statusPillTextActive: {
-      color: colors.successText,
+      color: colors.success,
     },
     statusPillTextUsed: {
       color: colors.textMuted,
@@ -980,7 +980,7 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.primaryLight,
+      backgroundColor: colors.primarySoft,
       paddingVertical: 7,
       borderRadius: 6,
       gap: 6,
@@ -994,7 +994,7 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.primaryStrongText,
     },
     orderCard: {
-      backgroundColor: colors.inputBackground,
+      backgroundColor: colors.surfaceInput,
       borderRadius: 10,
       padding: 12,
       marginBottom: 10,
@@ -1028,7 +1028,7 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.textSecondary,
     },
     pointsPill: {
-      backgroundColor: colors.primaryLight,
+      backgroundColor: colors.primarySoft,
       paddingHorizontal: 6,
       paddingVertical: 2,
       borderRadius: 4,
