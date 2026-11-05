@@ -2,6 +2,7 @@
   "expo": {
     "name": "SuperBasicBonusStamp",
     "slug": "fotobutik-mobile",
+    "scheme": "bonusstamp",
     "version": "1.0.0",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
