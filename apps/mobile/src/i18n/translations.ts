@@ -70,6 +70,26 @@ export interface Translations {
     loginBtn: string;
     switchToLogin: string;
     switchToRegister: string;
+    tabPassword: string;
+    tabMagicLink: string;
+    magicLinkTitle: string;
+    magicLinkSubtitle: string;
+    sendMagicLinkBtn: string;
+    magicLinkSentTitle: string;
+    magicLinkSentMsg: string;
+    otpLabel: string;
+    otpPlaceholder: string;
+    verifyOtpBtn: string;
+    resendCodeBtn: string;
+    codeResentMsg: string;
+    verifyTitle: string;
+    verifySubtitle: string;
+    emailNotConfirmedTitle: string;
+    emailNotConfirmedMsg: string;
+    checkEmailInstruction: string;
+    missingOtp: string;
+    backToLogin: string;
+    openOtpVerification: string;
     supabaseNotConfiguredTitle: string;
     supabaseNotConfiguredMsg: string;
     missingCredentialsTitle: string;
@@ -341,6 +361,31 @@ export const translations: Record<LanguageCode, Translations> = {
       loginBtn: 'Logga in',
       switchToLogin: 'Har du redan ett konto? Logga in här',
       switchToRegister: 'Ny butik? Skapa ett butikskonto här',
+      tabPassword: 'Lösenord',
+      tabMagicLink: 'Magic Link / Kod',
+      magicLinkTitle: 'Logga in med länk eller kod',
+      magicLinkSubtitle:
+        'Ange din e-post så skickar vi en inloggningslänk och en 6-siffrig kod direkt till din inkorg.',
+      sendMagicLinkBtn: 'Skicka inloggningskod / länk',
+      magicLinkSentTitle: 'Kolla din inkorg!',
+      magicLinkSentMsg:
+        'Vi har skickat en länk och kod till din e-post. Klicka på länken på denna enhet eller fyll i den 6-siffriga koden nedan.',
+      otpLabel: '6-siffrig kod från mejlet',
+      otpPlaceholder: 't.ex. 123456',
+      verifyOtpBtn: 'Verifiera och logga in',
+      resendCodeBtn: 'Skicka koden igen',
+      codeResentMsg: 'En ny kod har skickats till din e-post.',
+      verifyTitle: 'Bekräfta ditt konto',
+      verifySubtitle:
+        'Fyll i den 6-siffriga koden som vi skickade till din e-post för att aktivera ditt butikskonto.',
+      emailNotConfirmedTitle: 'E-posten är inte bekräftad',
+      emailNotConfirmedMsg:
+        'Ditt konto kräver att e-postadressen bekräftas. Fyll i den 6-siffriga koden från mejlet eller klicka på länken.',
+      checkEmailInstruction:
+        'Klicka på länken i mejlet på denna enhet eller skriv in den 6-siffriga koden här:',
+      missingOtp: 'Ange den 6-siffriga koden från mejlet.',
+      backToLogin: 'Tillbaka till inloggning',
+      openOtpVerification: 'Har du redan fått en kod i mejlet? Klicka här',
       supabaseNotConfiguredTitle: 'Supabase ej konfigurerat än',
       supabaseNotConfiguredMsg:
         'Lägg in EXPO_PUBLIC_SUPABASE_URL och EXPO_PUBLIC_SUPABASE_ANON_KEY i apps/mobile/.env, eller klicka på "Testa i Demo-läge" nedan för att testa appen direkt!',
@@ -640,6 +685,31 @@ export const translations: Record<LanguageCode, Translations> = {
       loginBtn: 'Sign in',
       switchToLogin: 'Already have an account? Sign in here',
       switchToRegister: 'New store? Create a store account here',
+      tabPassword: 'Password',
+      tabMagicLink: 'Magic Link / Code',
+      magicLinkTitle: 'Sign in with Link or Code',
+      magicLinkSubtitle:
+        'Enter your email address and we will send a sign-in link and a 6-digit code straight to your inbox.',
+      sendMagicLinkBtn: 'Send login link / code',
+      magicLinkSentTitle: 'Check your inbox!',
+      magicLinkSentMsg:
+        'We sent a link and code to your email. Tap the link on this device or enter the 6-digit code below.',
+      otpLabel: '6-digit code from email',
+      otpPlaceholder: 'e.g. 123456',
+      verifyOtpBtn: 'Verify and Sign in',
+      resendCodeBtn: 'Resend code',
+      codeResentMsg: 'A new code has been sent to your email.',
+      verifyTitle: 'Confirm your account',
+      verifySubtitle:
+        'Enter the 6-digit code sent to your email to activate your store account.',
+      emailNotConfirmedTitle: 'Email not confirmed',
+      emailNotConfirmedMsg:
+        'Your store account requires email confirmation. Enter the 6-digit code from your email or click the link.',
+      checkEmailInstruction:
+        'Click the link in the email on this device or enter the 6-digit code here:',
+      missingOtp: 'Please enter the 6-digit code from the email.',
+      backToLogin: 'Back to sign in',
+      openOtpVerification: 'Already got a code in your email? Tap here',
       supabaseNotConfiguredTitle: 'Supabase not configured yet',
       supabaseNotConfiguredMsg:
         'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in apps/mobile/.env, or tap "Try Demo Mode" below to test the app right away!',
@@ -939,6 +1009,31 @@ export const translations: Record<LanguageCode, Translations> = {
       loginBtn: 'Anmelden',
       switchToLogin: 'Bereits ein Konto? Hier anmelden',
       switchToRegister: 'Neues Geschäft? Hier Konto erstellen',
+      tabPassword: 'Passwort',
+      tabMagicLink: 'Magic Link / Code',
+      magicLinkTitle: 'Mit Link oder Code anmelden',
+      magicLinkSubtitle:
+        'Geben Sie Ihre E-Mail-Adresse ein, um einen Anmeldelink und einen 6-stelligen Code direkt in Ihren Posteingang zu erhalten.',
+      sendMagicLinkBtn: 'Anmeldelink / Code senden',
+      magicLinkSentTitle: 'Posteingang prüfen!',
+      magicLinkSentMsg:
+        'Wir haben einen Link und Code an Ihre E-Mail gesendet. Tippen Sie auf den Link auf diesem Gerät oder geben Sie den 6-stelligen Code unten ein.',
+      otpLabel: '6-stelliger Code aus der E-Mail',
+      otpPlaceholder: 'z. B. 123456',
+      verifyOtpBtn: 'Bestätigen und anmelden',
+      resendCodeBtn: 'Code erneut senden',
+      codeResentMsg: 'Ein neuer Code wurde an Ihre E-Mail gesendet.',
+      verifyTitle: 'Konto bestätigen',
+      verifySubtitle:
+        'Geben Sie den 6-stelligen Code ein, um Ihr Geschäftskonto zu aktivieren.',
+      emailNotConfirmedTitle: 'E-Mail nicht bestätigt',
+      emailNotConfirmedMsg:
+        'Ihr Konto erfordert eine E-Mail-Bestätigung. Geben Sie den 6-stelligen Code ein oder klicken Sie auf den Link in der E-Mail.',
+      checkEmailInstruction:
+        'Klicken Sie auf den Link in der E-Mail auf diesem Gerät oder geben Sie den Code hier ein:',
+      missingOtp: 'Bitte geben Sie den 6-stelligen Code aus der E-Mail ein.',
+      backToLogin: 'Zurück zur Anmeldung',
+      openOtpVerification: 'Haben Sie bereits einen Bestätigungscode? Hier tippen',
       supabaseNotConfiguredTitle: 'Supabase noch nicht konfiguriert',
       supabaseNotConfiguredMsg:
         'Fügen Sie EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_ANON_KEY in apps/mobile/.env ein oder tippen Sie unten auf „Demo-Modus testen“!',
@@ -1240,6 +1335,31 @@ export const translations: Record<LanguageCode, Translations> = {
       loginBtn: 'Iniciar sesión',
       switchToLogin: '¿Ya tienes una cuenta? Inicia sesión aquí',
       switchToRegister: '¿Nueva tienda? Crea una cuenta aquí',
+      tabPassword: 'Contraseña',
+      tabMagicLink: 'Magic Link / Código',
+      magicLinkTitle: 'Iniciar sesión con enlace o código',
+      magicLinkSubtitle:
+        'Introduce tu correo y te enviaremos un enlace de inicio de sesión y un código de 6 dígitos directo a tu bandeja de entrada.',
+      sendMagicLinkBtn: 'Enviar enlace / código',
+      magicLinkSentTitle: '¡Revisa tu correo!',
+      magicLinkSentMsg:
+        'Te hemos enviado un enlace y un código a tu correo. Toca el enlace en este dispositivo o introduce el código de 6 dígitos abajo.',
+      otpLabel: 'Código de 6 dígitos del correo',
+      otpPlaceholder: 'p. ej. 123456',
+      verifyOtpBtn: 'Verificar e iniciar sesión',
+      resendCodeBtn: 'Reenviar código',
+      codeResentMsg: 'Se ha enviado un nuevo código a tu correo.',
+      verifyTitle: 'Confirma tu cuenta',
+      verifySubtitle:
+        'Introduce el código de 6 dígitos enviado a tu correo para activar la cuenta de tu tienda.',
+      emailNotConfirmedTitle: 'Correo no confirmado',
+      emailNotConfirmedMsg:
+        'Tu cuenta requiere confirmación por correo. Introduce el código de 6 dígitos o haz clic en el enlace del correo.',
+      checkEmailInstruction:
+        'Haz clic en el enlace del correo en este dispositivo o introduce el código de 6 dígitos aquí:',
+      missingOtp: 'Por favor, introduce el código de 6 dígitos del correo.',
+      backToLogin: 'Volver a iniciar sesión',
+      openOtpVerification: '¿Ya tienes un código en tu correo? Toca aquí',
       supabaseNotConfiguredTitle: 'Supabase aún no configurado',
       supabaseNotConfiguredMsg:
         'Añade EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_ANON_KEY en apps/mobile/.env, ¡o pulsa "Probar modo Demo" abajo para probar la app ahora mismo!',

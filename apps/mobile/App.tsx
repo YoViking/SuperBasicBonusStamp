@@ -2,7 +2,8 @@ import 'react-native-get-random-values';
 import 'fast-text-encoding';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Alert } from 'react-native';
+import * as Linking from 'expo-linking';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
@@ -19,6 +20,7 @@ import ArticleManager from './src/screens/ArticleManager';
 import BonusSettingsScreen from './src/screens/BonusSettingsScreen';
 import AppSettingsScreen from './src/screens/AppSettingsScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import { handleAuthUrl } from './src/services/authDeepLink';
 
 const Tab = createBottomTabNavigator();
 const AdminTab = createMaterialTopTabNavigator();
@@ -97,11 +99,40 @@ function AppContent() {
       const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
         setIsAuthenticated(Boolean(session));
       });
+
+      // Handle deep links when app is launched or receives URL
+      const processDeepLink = async (url: string | null) => {
+        if (!url) return;
+        try {
+          const result = await handleAuthUrl(url);
+          if (result.handled) {
+            if (result.success) {
+              await checkAuth();
+            } else if (result.error) {
+              Alert.alert(t.login.authErrorTitle, result.error);
+            }
+          }
+        } catch (err: any) {
+          console.warn('Deep link error:', err);
+        }
+      };
+
+      // Check initial launch URL
+      Linking.getInitialURL()
+        .then(processDeepLink)
+        .catch(() => {});
+
+      // Listen for incoming deep links while app is open
+      const linkSub = Linking.addEventListener('url', (event) => {
+        processDeepLink(event.url);
+      });
+
       return () => {
         listener.subscription.unsubscribe();
+        linkSub.remove();
       };
     }
-  }, [checkAuth]);
+  }, [checkAuth, t]);
 
   const handleLogout = useCallback(async () => {
     await setDemoModeActive(false);

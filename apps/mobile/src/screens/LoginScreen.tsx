@@ -11,28 +11,48 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { Star, Lightbulb, Rocket } from 'lucide-react-native';
+import {
+  Star,
+  Lightbulb,
+  Mail,
+  ArrowLeft,
+  RefreshCw,
+  CheckCircle2,
+} from 'lucide-react-native';
 import { supabase, isSupabaseConfigured } from '../db/supabase';
 import { setDemoModeActive, saveStoreSettings, getStoreSettings } from '../db/operations';
 import { useTheme, ThemeColors } from '../theme/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
+import { getAuthRedirectUrl } from '../services/authDeepLink';
 
 interface LoginScreenProps {
   onAuthenticated: () => void;
 }
+
+type ScreenView = 'login' | 'verify';
 
 export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
   const { colors } = useTheme();
   const { t } = useLanguage();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  const [view, setView] = useState<ScreenView>('login');
   const [isRegistering, setIsRegistering] = useState(false);
+
+  // Form fields
   const [storeName, setStoreName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+
+  // Verification state
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [verificationType, setVerificationType] = useState<'signup' | 'magiclink'>('signup');
+
   const [loading, setLoading] = useState(false);
 
-  const handleAuth = async () => {
+  // Handle password login or registration
+  const handlePasswordAuth = async () => {
     if (!isSupabaseConfigured) {
       Alert.alert(
         t.login.supabaseNotConfiguredTitle,
@@ -56,10 +76,12 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
       await setDemoModeActive(false);
 
       if (isRegistering) {
+        const redirectUrl = getAuthRedirectUrl();
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password: password.trim(),
           options: {
+            emailRedirectTo: redirectUrl,
             data: {
               store_name: storeName.trim(),
             },
@@ -76,8 +98,11 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
           });
           onAuthenticated();
         } else {
+          // Email confirmation is required by Supabase
+          setVerificationEmail(email.trim());
+          setVerificationType('signup');
+          setView('verify');
           Alert.alert(t.login.accountCreatedTitle, t.login.accountCreatedMsg);
-          setIsRegistering(false);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -85,7 +110,24 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
           password: password.trim(),
         });
 
-        if (error) throw error;
+        if (error) {
+          const errMsg = error.message || '';
+          if (
+            errMsg.toLowerCase().includes('email not confirmed') ||
+            errMsg.toLowerCase().includes('not confirmed')
+          ) {
+            setVerificationEmail(email.trim());
+            setVerificationType('signup');
+            setView('verify');
+            Alert.alert(
+              t.login.emailNotConfirmedTitle,
+              t.login.emailNotConfirmedMsg
+            );
+            return;
+          }
+          throw error;
+        }
+
         onAuthenticated();
       }
     } catch (err: any) {
@@ -98,9 +140,107 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
     }
   };
 
-  const handleStartDemo = async () => {
-    await setDemoModeActive(true);
-    onAuthenticated();
+  // Handle verifying OTP code
+  const handleVerifyOtp = async () => {
+    if (!verificationEmail.trim()) {
+      Alert.alert(t.login.missingCredentialsTitle, t.login.emailPlaceholder);
+      return;
+    }
+
+    if (!otpCode.trim()) {
+      Alert.alert(t.login.missingCredentialsTitle, t.login.missingOtp);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await setDemoModeActive(false);
+
+      const targetEmail = verificationEmail.trim();
+      const code = otpCode.trim();
+      const primaryType = verificationType === 'signup' ? 'signup' : 'email';
+
+      let result = await supabase.auth.verifyOtp({
+        email: targetEmail,
+        token: code,
+        type: primaryType as any,
+      });
+
+      // Fallback in case type differs
+      if (result.error) {
+        const fallbackType = primaryType === 'signup' ? 'email' : 'signup';
+        const fallbackResult = await supabase.auth.verifyOtp({
+          email: targetEmail,
+          token: code,
+          type: fallbackType as any,
+        });
+
+        if (!fallbackResult.error) {
+          result = fallbackResult;
+        }
+      }
+
+      if (result.error) throw result.error;
+
+      if (result.data.session) {
+        if (storeName.trim()) {
+          const current = await getStoreSettings();
+          await saveStoreSettings({
+            ...current,
+            storeName: storeName.trim(),
+          });
+        }
+        onAuthenticated();
+      } else {
+        Alert.alert(t.login.accountCreatedTitle, t.login.accountCreatedMsg);
+        setView('login');
+      }
+    } catch (err: any) {
+      Alert.alert(
+        t.login.authErrorTitle,
+        err.message || t.login.authErrorDefault
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle resending verification code
+  const handleResend = async () => {
+    if (!verificationEmail.trim()) return;
+
+    setLoading(true);
+    try {
+      const redirectUrl = getAuthRedirectUrl();
+
+      if (verificationType === 'signup') {
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email: verificationEmail.trim(),
+          options: {
+            emailRedirectTo: redirectUrl,
+          },
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: verificationEmail.trim(),
+          options: {
+            emailRedirectTo: redirectUrl,
+          },
+        });
+        if (error) throw error;
+      }
+
+      Alert.alert(t.login.magicLinkSentTitle, t.login.codeResentMsg);
+    } catch (err: any) {
+      Alert.alert(
+        t.login.authErrorTitle,
+        err.message || t.login.authErrorDefault
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -121,71 +261,173 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>
-            {isRegistering ? t.login.registerTitle : t.login.loginTitle}
-          </Text>
-
-          {isRegistering && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>{t.login.storeNameLabel}</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={t.login.storeNamePlaceholder}
-                value={storeName}
-                onChangeText={setStoreName}
-                placeholderTextColor={colors.placeholder}
-              />
-            </View>
-          )}
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t.login.emailLabel}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t.login.emailPlaceholder}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={email}
-              onChangeText={setEmail}
-              placeholderTextColor={colors.placeholder}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t.login.passwordLabel}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t.login.passwordPlaceholder}
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              placeholderTextColor={colors.placeholder}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleAuth}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.primaryButtonText}>
-                {isRegistering ? t.login.registerBtn : t.login.loginBtn}
+          {view === 'login' ? (
+            <>
+              <Text style={styles.cardTitle}>
+                {isRegistering ? t.login.registerTitle : t.login.loginTitle}
               </Text>
-            )}
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.switchModeButton}
-            onPress={() => setIsRegistering(!isRegistering)}
-          >
-            <Text style={styles.switchModeText}>
-              {isRegistering ? t.login.switchToLogin : t.login.switchToRegister}
-            </Text>
-          </TouchableOpacity>
+              {isRegistering && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{t.login.storeNameLabel}</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={t.login.storeNamePlaceholder}
+                    value={storeName}
+                    onChangeText={setStoreName}
+                    placeholderTextColor={colors.placeholder}
+                  />
+                </View>
+              )}
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>{t.login.emailLabel}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t.login.emailPlaceholder}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholderTextColor={colors.placeholder}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>{t.login.passwordLabel}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t.login.passwordPlaceholder}
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholderTextColor={colors.placeholder}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={handlePasswordAuth}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>
+                    {isRegistering ? t.login.registerBtn : t.login.loginBtn}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.switchModeButton}
+                onPress={() => setIsRegistering(!isRegistering)}
+              >
+                <Text style={styles.switchModeText}>
+                  {isRegistering
+                    ? t.login.switchToLogin
+                    : t.login.switchToRegister}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={() => {
+                  setVerificationEmail(email);
+                  setVerificationType('signup');
+                  setView('verify');
+                }}
+              >
+                <Text style={styles.linkButtonText}>
+                  {t.login.openOtpVerification}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => setView('login')}
+              >
+                <ArrowLeft size={18} color={colors.textSecondary} />
+                <Text style={styles.backButtonText}>{t.login.backToLogin}</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.cardTitle}>{t.login.verifyTitle}</Text>
+              <Text style={styles.cardSubtitle}>
+                {t.login.verifySubtitle}
+              </Text>
+
+              <View style={styles.verifyTargetBox}>
+                <Mail size={16} color={colors.primaryText} />
+                <Text style={styles.verifyTargetEmail} numberOfLines={1}>
+                  {verificationEmail || email}
+                </Text>
+              </View>
+
+              {!verificationEmail && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{t.login.emailLabel}</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={t.login.emailPlaceholder}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={verificationEmail}
+                    onChangeText={setVerificationEmail}
+                    placeholderTextColor={colors.placeholder}
+                  />
+                </View>
+              )}
+
+              <View style={styles.infoNoteBox}>
+                <CheckCircle2 size={16} color={colors.primaryStrongText} />
+                <Text style={styles.infoNoteText}>
+                  {t.login.checkEmailInstruction}
+                </Text>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>{t.login.otpLabel}</Text>
+                <TextInput
+                  style={[styles.input, styles.otpInput]}
+                  placeholder={t.login.otpPlaceholder}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={otpCode}
+                  onChangeText={setOtpCode}
+                  placeholderTextColor={colors.placeholder}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={handleVerifyOtp}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>
+                    {t.login.verifyOtpBtn}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={handleResend}
+                disabled={loading}
+              >
+                <RefreshCw size={15} color={colors.primaryText} />
+                <Text style={styles.resendButtonText}>
+                  {t.login.resendCodeBtn}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {!isSupabaseConfigured && (
@@ -204,11 +446,6 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
             </Text>
           </View>
         )}
-
-        <TouchableOpacity style={styles.demoButton} onPress={handleStartDemo}>
-          <Rocket size={18} color={colors.textSecondary} />
-          <Text style={styles.demoButtonText}>{t.login.demoBtn}</Text>
-        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -230,7 +467,7 @@ const createStyles = (colors: ThemeColors) =>
     },
     headerBox: {
       alignItems: 'center',
-      marginBottom: 28,
+      marginBottom: 24,
     },
     logoBadge: {
       width: 68,
@@ -271,8 +508,15 @@ const createStyles = (colors: ThemeColors) =>
       fontSize: 20,
       fontWeight: '700',
       color: colors.text,
-      marginBottom: 20,
+      marginBottom: 8,
       textAlign: 'center',
+    },
+    cardSubtitle: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: 18,
+      textAlign: 'center',
+      lineHeight: 20,
     },
     inputGroup: {
       marginBottom: 16,
@@ -293,6 +537,45 @@ const createStyles = (colors: ThemeColors) =>
       backgroundColor: colors.surfaceInput,
       color: colors.text,
     },
+    otpInput: {
+      textAlign: 'center',
+      fontSize: 24,
+      letterSpacing: 8,
+      fontWeight: '700',
+    },
+    verifyTargetBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.primarySoft,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      marginBottom: 16,
+    },
+    verifyTargetEmail: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.primaryStrongText,
+    },
+    infoNoteBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      backgroundColor: colors.surfaceInput,
+      padding: 12,
+      borderRadius: 10,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    infoNoteText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      lineHeight: 18,
+      flex: 1,
+    },
     primaryButton: {
       backgroundColor: colors.primary,
       borderRadius: 10,
@@ -311,6 +594,43 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: 6,
     },
     switchModeText: {
+      color: colors.primaryText,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    linkButton: {
+      marginTop: 10,
+      alignItems: 'center',
+      paddingVertical: 6,
+    },
+    linkButtonText: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: '500',
+      textDecorationLine: 'underline',
+    },
+    backButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      marginBottom: 14,
+      paddingVertical: 4,
+    },
+    backButtonText: {
+      color: colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    resendButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginTop: 14,
+      paddingVertical: 8,
+    },
+    resendButtonText: {
       color: colors.primaryText,
       fontSize: 14,
       fontWeight: '600',
@@ -341,23 +661,6 @@ const createStyles = (colors: ThemeColors) =>
     },
     codeText: {
       fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-      fontWeight: '700',
-    },
-    demoButton: {
-      marginTop: 16,
-      paddingVertical: 14,
-      borderRadius: 10,
-      borderWidth: 1.5,
-      borderColor: colors.borderInput,
-      backgroundColor: colors.surface,
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 8,
-    },
-    demoButtonText: {
-      color: colors.textSecondary,
-      fontSize: 14,
       fontWeight: '700',
     },
   });
